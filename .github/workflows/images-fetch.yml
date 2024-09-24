@@ -1,0 +1,230 @@
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      established-runner:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+      DISTRO_CODENAME:
+        description: Caller supplies the DISTRO_CODENAME
+        required: true
+        type: string
+      DISTROS:
+        description: Caller supplies the DISTRO as a space seperated list
+        required: true
+        type: string
+      MACHINES:
+        description: Caller supplies the MACHINE as a space seperated list
+        required: true
+        type: string
+      TARGETS:
+        description: Caller supplies the TARGET as a space seperated list
+        required: true
+        type: string
+      TARGET_FLAGS:
+        description: Caller supplies optional TARGET_FLAGS as a space seperated list
+        required: false
+        type: string
+      MANIFEST_URI:
+        description: Caller supplies the repo manifest URI
+        required: true
+        type: string
+      MANIFEST_BRANCH:
+        description: Caller supplies the repo manifest branch
+        required: true
+        type: string
+      CLEAN_DL_DIR:
+        description: Caller supplies boolean to clean DL_DIR
+        required: false
+        type: string
+      CLEAN_SSTATE_DIR:
+        description: Caller supplies boolean to clean SSTATE_DIR
+        required: false
+        type: string
+    secrets:
+      AWS_ENDPOINT_URL:
+        description: Organization secret, AWS S3 DNS Endpoint
+        required: true
+      AWS_ACCESS_KEY_ID:
+        description: Organization secret, AWS S3 Access Key ID
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        description: Organization Secret, AWS S3 Secret Access Key
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  execute:
+    env:
+      # Workflow does fetch
+      DO_FETCH: true
+      DISTRO_CODENAME: ${{ inputs.DISTRO_CODENAME }}
+      DISTROS: ${{ inputs.DISTROS }}
+      MACHINES: ${{ inputs.MACHINES }}
+      TARGETS: ${{ inputs.TARGETS }}
+      MANIFEST_URI: ${{ inputs.MANIFEST_URI }}
+      MANIFEST_BRANCH: ${{ inputs.MANIFEST_BRANCH }}
+      # pre_build to avoid OOM, uses qemu-$MACHINE
+      PRE_TARGETS: >-
+        gobject-introspection-native
+        gobject-introspection
+      FETCH_TIMEOUT: 360
+      BUILD_TIMEOUT: 720
+    runs-on: ${{ inputs.established-runner }}
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1.2.1
+      - name: pre-cleanup
+        run: |
+          :
+          echo "::add-mask::$GITHUB_WORKSPACE"  # reduce path in log
+          echo "::add-mask::$HOME"              # reduce path in log
+          if [[ -n "$GITHUB_WORKSPACE" ]]; then
+            rm -rf -- $GITHUB_WORKSPACE/{.*,*}
+          fi
+      - name: job environment
+        run: |
+          :
+          echo "PATH=$GITHUB_WORKSPACE/.repo/manifests/scripts:$PATH" >> $GITHUB_ENV
+          # echo "DISTRO_CODENAME=${{ inputs.DISTRO_CODENAME }}" >> $GITHUB_ENV
+          # echo "DISTROS=${{ inputs.DISTROS }}" >> $GITHUB_ENV
+          # echo "MACHINES=${{ inputs.MACHINES }}" >> $GITHUB_ENV
+          # echo "TARGETS=${{ inputs.TARGETS }}" >> $GITHUB_ENV
+          ${{ inputs.TARGET_FLAGS && 'true' || 'false' }} \
+            && echo "TARGET_FLAGS=--target-flags=\"${{ inputs.TARGET_FLAGS }}\"" >> $GITHUB_ENV \
+            || echo "TARGET_FLAGS=" >> $GITHUB_ENV
+          # echo "MANIFEST_URI=${{ inputs.MANIFEST_URI }}" >> $GITHUB_ENV
+          # echo "MANIFEST_BRANCH=${{ inputs.MANIFEST_BRANCH }}" >> $GITHUB_ENV
+          [[ -d /nfs/downloads ]] \
+            && echo "DL_DIR=/nfs/downloads" >> $GITHUB_ENV
+          [[ -d /nfs/sstate-cache ]] \
+            && echo "SSTATE_DIR=/nfs/sstate-cache" >> $GITHUB_ENV
+          echo "S3CMD_CONFIG=$GITHUB_WORKSPACE/.s3cmd" >> $GITHUB_ENV
+      - name: configure s3cmd
+        run: |
+          :
+          if [[ -n "${{ secrets.AWS_ENDPOINT_URL }}" ]]; then
+            printf "%s\n%s\n\n%s\n%s\n%s\n\n\n\n\ny\n" "${{ secrets.AWS_ACCESS_KEY_ID }}" "${{ secrets.AWS_SECRET_ACCESS_KEY }}" "${{ secrets.AWS_ENDPOINT_URL }}" "%(bucket)s.${{ secrets.AWS_ENDPOINT_URL }}" "encrypted" | \
+            s3cmd --config $S3CMD_CONFIG --configure
+          fi
+      - name: configure repo
+        run: |
+          :
+          curl --silent https://storage.googleapis.com/git-repo-downloads/repo > $HOME/.local/bin/repo
+          chmod a+rx $HOME/.local/bin/repo
+      - name: repo init and sync
+        run: |
+          :
+          if [[ ! -d .repo/manifests ]] ; then
+            repo init -u $MANIFEST_URI -b $MANIFEST_BRANCH -m distro-head-$DISTRO_CODENAME.xml --no-clone-bundle
+          else
+            repo init -b $MANIFEST_BRANCH -m distro-head-$DISTRO_CODENAME.xml --no-clone-bundle
+          fi
+          repo sync
+          echo MANIFEST_BRANCH="$(git -C .repo/manifests rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" | cut -d'/' -f2)">> $GITHUB_ENV
+          echo MANIFEST_COMMIT_ID="$(git -C .repo/manifests rev-parse HEAD)" >> $GITHUB_ENV
+          echo MANIFEST_NAME="$(xmllint --xpath "string(//include/@name)" .repo/manifest.xml)" >> $GITHUB_ENV
+          echo "----------------------------"
+          repo forall -c 'echo $REPO_PROJECT $REPO_RREV; git checkout --track origin/$REPO_RREV'
+          repo status
+          echo "----------------------------"
+          repo info | tee $GITHUB_WORKSPACE/repo-info.log
+      - name: images fetch
+        if: ${{ env.DO_FETCH }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: ${{ env.FETCH_TIMEOUT }}
+          max_attempts: 3
+          command: |
+            :
+            export BB_NO_NETWORK="0"
+            git config --global --unset safe.directory || true
+            git config --global --add safe.directory '*' || true
+            for distro in $DISTROS ; do
+              for machine in $MACHINES ; do
+                echo "::group::images fetch $distro $machine"
+                .repo/manifests/scripts/images-build.sh --distro=$distro --machine=$machine --target="$TARGETS" $TARGET_FLAGS --fetch-downloads
+                echo "::endgroup::"
+              done
+            done
+            git config --global --unset safe.directory || true
+      - name: images build
+        if: ${{ ! env.DO_FETCH }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: ${{ env.BUILD_TIMEOUT }}
+          max_attempts: 3
+          command: |
+            :
+            export BB_NO_NETWORK="1"
+            for distro in $DISTROS ; do
+              for machine in $MACHINES ; do
+                echo "::group::images build $distro $machine"
+                for pre_target in ${{ env.PRE_TARGETS }} ; do
+                  .repo/manifests/scripts/images-build.sh --distro=$distro --machine=$machine --target="$pre_target" $TARGET_FLAGS
+                done
+                .repo/manifests/scripts/images-build.sh --distro=$distro --machine=$machine --target="$TARGETS" $TARGET_FLAGS
+                echo "::endgroup::"
+              done
+            done
+      - name: S3 s3://distro-core-downloads
+        if: ${{ always() }}
+        run: |
+          :
+          if [[ -n "${{ secrets.AWS_ENDPOINT_URL }}" ]]; then
+            bucket=distro-core-downloads
+            [[ -n "$DL_DIR" && -d $DL_DIR ]] \
+              && bucket_dir=$DL_DIR \
+              || bucket_dir=build/downloads
+            s3cmd --config $S3CMD_CONFIG sync --recursive --acl-public --no-delete-removed --no-preserve \
+              --exclude 'git2/*' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+              $bucket_dir/ s3://$bucket/
+          fi
+      - name: S3 s3://distro-core-sstate-cache
+        if: ${{ ! env.DO_FETCH }}
+        run: |
+          :
+          if [[ -n "${{ secrets.AWS_ENDPOINT_URL }}" ]]; then
+            bucket=distro-core-sstate-cache
+            [[ -n "$SSTATE_DIR" && -d $SSTATE_DIR ]] \
+              && bucket_dir=$SSTATE_DIR \
+              || bucket_dir=build/sstate-cache
+            s3cmd --config $S3CMD_CONFIG sync --recursive --acl-public --no-delete-removed --no-preserve \
+              $bucket_dir/ s3://$bucket/
+          fi
+      - name: S3 s3://distro-core-artifacts
+        if: false
+        run: |
+          :
+          if [[ -n "${{ secrets.AWS_ENDPOINT_URL }}" ]]; then
+            for distro in $DISTROS ; do
+              for machine in $MACHINES ; do
+                bucket=distro-core-artifacts/$distro/$machine
+                bucket_dir=build/${distro}/tmp-${machine}/deploy
+                for dir in ostree_repo ; do
+                  if [[ -d $bucket_dir/$dir ]]; then
+                    echo "::group::s3://$bucket/$dir"
+                    ls -al $bucket_dir/$dir
+                    s3cmd --config $S3CMD_CONFIG sync --recursive --acl-public --no-delete-removed --no-preserve \
+                      $bucket_dir/$dir/ s3://$bucket/$distro/$machine/$dir/
+                    echo "::endgroup::"
+                  fi
+                done
+              done
+            done
+          fi
+      # - name: post-cleanup
+      #   run: |
+      #     :
+      #     if [ -n "$GITHUB_WORKSPACE" ]; then
+      #       rm -rf -- $GITHUB_WORKSPACE/{.*,*}
+      #     fi
+      - name: workflow complete
+        run: |
+          echo "::notice::workflow complete"

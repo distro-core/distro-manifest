@@ -1,0 +1,82 @@
+name: Scheduled Images Build
+
+run-name: Scheduled Images Build
+
+# This workflow represents a specific configuration for a
+# single MACHINE as a specific design goal. It utilizes a
+# reusable workflow found at distro-core/distro-manifest.
+
+# Requires
+# secrets.AWS_ACCESS_KEY_ID                 S3 Access Key
+# secrets.AWS_SECRET_ACCESS_KEY             S3 Secret Key
+# secrets.AWS_ENDPOINT_URL                  S3 Endpoint Hostname
+
+# Self hosted runners have the prerequsite dependency to install the
+# host tools dependencies before pipeline use. Utilize script found
+# at distro-core/distro-manifest/scripts/setup-host-deps.sh
+
+on:
+  # schedule:
+  #   - cron: '30 2 * * SUN,TUE,THU'
+  #   - cron: '30 3 * * MON,WED,FRI'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  # get-runner-name selects a self-hosted runner which has a label
+  # that matches its name. The setup has to be performed when the
+  # runner is initially created.
+
+  get-runner-name:
+    runs-on: self-hosted
+    outputs:
+     established-runner: ${{ runner.name }}
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1.2.1
+      # - uses: n1hility/cancel-previous-runs@v3.0
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     workflow: scheduled-images-build.yml
+      - run: echo "selected runner = ${{ runner.name }}"
+
+  fetch:
+    needs: get-runner-name
+    if: true
+    uses: distro-core/distro-manifest/.github/workflows/images-fetch.yml@main
+    with:
+      established-runner: ${{ needs.get-runner-name.outputs.established-runner }}
+      DISTRO_CODENAME: scarthgap
+      DISTROS: null
+      MACHINES: null
+      TARGETS: distro-image
+      MANIFEST_URI: https://github.com/distro-core/distro-manifest.git
+      MANIFEST_BRANCH: main
+    secrets:
+      AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  build:
+    if: true
+    needs: [ get-runner-name, fetch ]
+    uses: distro-core/distro-manifest/.github/workflows/images-build.yml@main
+    with:
+      established-runner: ${{ needs.get-runner-name.outputs.established-runner }}
+      DISTRO_CODENAME: scarthgap
+      DISTROS: null
+      MACHINES: null
+      TARGETS: distro-image
+      MANIFEST_URI: https://github.com/distro-core/distro-manifest.git
+      MANIFEST_BRANCH: main
+    secrets:
+      AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
