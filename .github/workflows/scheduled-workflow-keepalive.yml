@@ -1,0 +1,50 @@
+name: Scheduled Workflow Keepalive
+
+# An action to perform enablement on github actions
+# workflows. According to github, repository actions
+# can be suspended if the repository is inactive for
+# 60 days.
+
+# Requires
+# actions/checkout@v4                       Github Action
+# distro-core/gh-workflow-keepalive@v1.2.1  Github Action
+
+# runs-on: ubuntu-latest
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 2-30/2 * *'
+
+jobs:
+
+  init:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - shell: bash
+        run: |
+          echo "::notice::⭐complete ${{ github.job }}"
+
+  execute:
+    needs: [ init ]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: distro-core/gh-actions-workflow-keepalive@v1.2.1
+      - shell: bash
+        run: |
+          echo "::notice::⭐complete ${{ github.job }}"
+
+  status:
+    needs: [ execute ]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - shell: bash
+        run: |
+          echo "::notice::✅complete ${{ github.workflow }}"
