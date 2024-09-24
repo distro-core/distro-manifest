@@ -1,0 +1,107 @@
+name: Fetch Downloads
+
+# Fetch downloads and store to S3
+
+on:
+  workflow_dispatch:
+
+env:
+  DISTRO_CODENAME: >-
+    scarthgap
+  DISTROS: >-
+    distro-core
+    distro-core-gui
+  MACHINES: >-
+    com-cexpress-bt
+    com-cexpress-sl
+    sbc-gene-bt05
+  TARGETS: >-
+    distro-image
+    distro-sdk-image
+  MANIFEST_URI: >-
+    https://github.com/distro-core/distro-manifest.git
+  MANIFEST_BRANCH: >-
+    main
+
+permissions:
+  actions: write
+
+jobs:
+
+  execute:
+    runs-on: [ ubuntu-22.04 ]
+    # timeout-minutes: 120
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1.2.1
+      - shell: bash
+        run: |
+          : environment
+          mkdir -p ${HOME}/.local/bin
+          echo "PATH=${HOME}/.local/bin:${PATH}" >> $GITHUB_ENV
+      - shell: bash
+        run: |
+          : install repo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ${HOME}/.local/bin/repo
+          chmod a+rx ${HOME}/.local/bin/repo
+      - shell: bash
+        run: |
+          : repo init/sync
+          repo init -u ${{ env.MANIFEST_URI }} -b ${{ env.MANIFEST_BRANCH }} -m distro-head-${{ env.DISTRO_CODENAME }}.xml --no-clone-bundle
+          repo sync
+          echo MANIFEST_BRANCH="$(git -C .repo/manifests rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" | cut -d'/' -f2)">> $GITHUB_ENV
+          echo MANIFEST_COMMIT_ID="$(git -C .repo/manifests rev-parse HEAD)" >> $GITHUB_ENV
+          echo MANIFEST_NAME="$(xmllint --xpath "string(//include/@name)" .repo/manifest.xml)" >> $GITHUB_ENV
+          echo MANIFEST_SERIAL=$(/bin/date -u "+%Y%m%d%H%M%S") >> $GITHUB_ENV
+      - shell: bash
+        run: |
+          : setup-host-deps
+          .repo/manifests/scripts/setup-home-links.sh
+          .repo/manifests/scripts/setup-host-deps.sh
+      - shell: bash
+        run: |
+          : s3cmd configure
+          mkdir ~/.config/s3cmd
+          printf "%s\n%s\n\n%s\n%s\n%s\n\n\n\n\ny\n" "${{ secrets.AWS_ACCESS_KEY_ID }}" "${{ secrets.AWS_SECRET_ACCESS_KEY }}" "${{ vars.AWS_ENDPOINT_URL }}" "%(bucket)s.${{ vars.AWS_ENDPOINT_URL }}" "encrypted" | \
+          s3cmd --config ~/.config/s3cmd/config --configure
+      - uses: actions/cache/restore@v4
+        with:
+          key: ${{ runner.os }}-build-downloads
+          path: |
+            build/downloads
+      - shell: bash
+        run: |
+          : downloads fetch
+          for distro in ${{ env.DISTROS }} ; do
+            for machine in ${{ env.MACHINES }} ; do
+              echo "::group::bitbake fetch ${distro} ${machine}"
+              scripts/images-build.sh --distro="${distro}" --machine="${machine}" --target="${{ env.TARGETS }}" --target-flags="--continue" --fetch-downloads
+              echo "::endgroup::"
+            done
+          done
+      - shell: bash
+        run: |
+          : downloads clean
+          rm -fr build/downloads/git2
+          rm -fr build/downloads/*.done
+          rm -fr build/downloads/*.lock
+          rm -fr build/downloads/tmp*
+          rm -fr build/downloads/*tmp
+      - uses: actions/cache/save@v4
+        with:
+          key: ${{ runner.os }}-build-downloads
+          path: |
+            build/downloads
+      - shell: bash
+        run: |
+          : S3 configure distro-core-downloads
+          bucket=distro-core-downloads
+          s3cmd --config ~/.config/s3cmd/config \
+            expire s3://$bucket
+      - shell: bash
+        run: |
+          : S3 sync distro-core-downloads
+          bucket=distro-core-downloads
+          s3cmd --config ~/.config/s3cmd/config \
+            sync --recursive --progress --acl-public --no-delete-removed \
+            --exclude 'git2/*' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+            build/downloads/ s3://$bucket
