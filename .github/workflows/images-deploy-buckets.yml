@@ -1,0 +1,159 @@
+name: Images Deploy Buckets
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+      timeout-minutes:
+        description: Caller supplies the runner timeout
+        required: true
+        type: number
+      DISTRO:
+        description: Caller supplies the DISTRO
+        required: true
+        type: string
+      MACHINE:
+        description: Caller supplies the MACHINE
+        required: true
+        type: string
+      DL_DIR:
+        description: Caller supplies DL_DIR
+        required: false
+        type: string
+      SSTATE_DIR:
+        description: Caller supplies SSTATE_DIR
+        required: false
+        type: string
+      MNT_DEPLOY_DIR:
+        description: Caller supplies MNT_DEPLOY_DIR
+        required: false
+        type: string
+      MNT_DL_DIR:
+        description: Caller supplies MNT_DL_DIR
+        required: false
+        type: string
+      MNT_SSTATE_DIR:
+        description: Caller supplies MNT_SSTATE_DIR
+        required: false
+        type: string
+    secrets:
+      AWS_ENDPOINT_URL:
+        description: OPTIONAL Secret, S3 DNS Endpoint
+        required: true
+      AWS_ACCESS_KEY_ID:
+        description: OPTIONAL Secret, S3 Access Key ID
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        description: OPTIONAL Secret, S3 Secret Access Key
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # build artifacts are sync to the destination
+
+  workflow:
+    runs-on: ${{ inputs.runner-name }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      DISTRO: ${{ inputs.DISTRO }}
+      MACHINE: ${{ inputs.MACHINE }}
+      S3CMD_CMD: ${{ github.workspace }}/s3cmd/bin/s3cmd
+      S3CMD_CONF: ${{ github.workspace }}/s3cmd.conf
+      EXPIRY_DAYS: 90
+    steps:
+    - run: |
+        : environment
+        [[ -n "${{ inputs.DL_DIR }}" ]] \
+          && echo "DL_DIR=${{ inputs.DL_DIR }}" >>$GITHUB_ENV \
+          || echo "DL_DIR=$GITHUB_WORKSPACE/build/downloads" >>$GITHUB_ENV
+        [[ -n "${{ inputs.SSTATE_DIR }}" ]] \
+          && echo "SSTATE_DIR=${{ inputs.SSTATE_DIR }}" >>$GITHUB_ENV \
+          || echo "SSTATE_DIR=$GITHUB_WORKSPACE/build/sstate-cache" >>$GITHUB_ENV
+    - run: |
+        : install
+        pip install --upgrade --target $(dirname $(dirname $S3CMD_CMD)))
+    - env:
+        AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        : configure
+        printf "%s\n%s\n\n%s\n%s\n%s\n\n\n\n\ny\n" \
+          "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" "$AWS_ENDPOINT_URL" "%(bucket)s.$AWS_ENDPOINT_URL" "encrypted" \
+          | $S3CMD_CMD --config $S3CMD_CONF --configure
+    - run: |
+        : execute DL_DIR
+        cat >$GITHUB_WORKSPACE/lifecycle.xml <<EOF
+        <?xml version="1.0" ?>
+        <LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Rule>
+        <ID>Prune files after $EXPIRY_DAYS days</ID>
+        <Prefix>/</Prefix>
+        <Status>Enabled</Status>
+        <Expiration>
+        <Days>$EXPIRY_DAYS</Days>
+        </Expiration>
+        </Rule>
+        </LifecycleConfiguration>
+        EOF
+        $S3CMD_CMD --config $S3CMD_CONF \
+          setlifecycle $GITHUB_WORKSPACE/lifecycle.xml \
+          s3://distro-core-downloads
+        if [[ -d $DL_DIR ]] ; then
+          $S3CMD_CMD --config $S3CMD_CONF \
+            sync --recursive --acl-public --preserve --no-delete-removed --progress \
+            --exclude 'git2/*' --exclude 'uninative/*' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+            $DL_DIR/ s3://distro-core-downloads/
+        fi
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### DEPLOY-BUCKETS
+        ~~~ text
+        $DL_DIR
+        $(df -TP $DL_DIR | tail -n -1)
+        ~~~
+        EOF
+    - run: |
+        : execute SSTATE_DIR
+        cat >$GITHUB_WORKSPACE/lifecycle.xml <<EOF
+        <?xml version="1.0" ?>
+        <LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Rule>
+        <ID>Prune files after $EXPIRY_DAYS days</ID>
+        <Prefix>/</Prefix>
+        <Status>Enabled</Status>
+        <Expiration>
+        <Days>$EXPIRY_DAYS</Days>
+        </Expiration>
+        </Rule>
+        </LifecycleConfiguration>
+        EOF
+        $S3CMD_CMD --config $S3CMD_CONF \
+          setlifecycle $GITHUB_WORKSPACE/lifecycle.xml \
+          s3://distro-core-sstate-cache
+        if [[ -d $SSTATE_DIR ]] ; then
+          $S3CMD_CMD --config $S3CMD_CONF \
+            sync --recursive --acl-public --preserve --no-delete-removed --progress \
+            $SSTATE_DIR/ s3://distro-core-sstate-cache/
+        fi
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### DEPLOY-MNT
+        ~~~ text
+        $SSTATE_DIR
+        $(df -TP $SSTATE_DIR | tail -n -1)
+        ~~~
+        EOF

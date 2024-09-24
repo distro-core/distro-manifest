@@ -1,0 +1,96 @@
+name: Runner Name
+# runner-name selects a self-hosted runner which has a label that
+# matches its name. The setup has to be performed before the
+# workflow instance is used; there can only be a single runner
+# with the label that matches its name. this allows for
+# GITHUB_WORKSPACE to be retained between individual jobs and
+# steps.
+
+on:
+  workflow_call:
+    outputs:
+      runner-name:
+        description: runner self-hosted runner-label matching runner-name
+        value: ${{ jobs.workflow.outputs.runner-name }}
+      runner-environment:
+        description: runner self-hosted
+        value: ${{ jobs.workflow.outputs.runner-environment }}
+      runner-os:
+        description: runner os
+        value: ${{ jobs.workflow.outputs.runner-arch }}
+      runner-arch:
+        description: runner cpu architecture
+        value: ${{ jobs.workflow.outputs.runner-arch }}
+      mnt-deploy-dir:
+        description: runner has share /mnt/artifacts
+        value: ${{ jobs.workflow.outputs.mnt-dl-dir }}
+      mnt-dl-dir:
+        description: runner has share /mnt/downloads
+        value: ${{ jobs.workflow.outputs.mnt-dl-dir }}
+      mnt-sstate-dir:
+        description: runner has share /mnt/sstate-cache
+        value: ${{ jobs.workflow.outputs.mnt-sstate-dir }}
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # return some basic info about the host with the runner; the common
+  # informaton for all workflows will be limited to those selected by
+  # the runs-on clause.
+
+  workflow:
+    runs-on: [ self-hosted, linux ]
+    outputs:
+      runner-name: ${{ steps.gen-outputs.outputs.runner-name }}
+      runner-environment: ${{ steps.gen-outputs.outputs.runner-environment }}
+      runner-os: ${{ steps.gen-outputs.outputs.runner-os }}
+      runner-arch: ${{ steps.gen-outputs.outputs.runner-arch }}
+      mnt-deploy-dir: ${{ steps.gen-outputs.outputs.mnt-deploy-dir }}
+      mnt-dl-dir: ${{ steps.gen-outputs.outputs.mnt-dl-dir }}
+      mnt-sstate-dir: ${{ steps.gen-outputs.outputs.mnt-sstate-dir }}
+    steps:
+    - id: gen-outputs
+      env:
+        RUNNER_NAME: ${{ runner.name }}
+        RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
+        MNT_DEPLOY_DIR: /mnt/artifacts
+        MNT_DL_DIR: /mnt/downloads
+        MNT_SSTATE_DIR: /mnt/sstate-cache
+      run: |
+        : generate outputs
+        # check for mounts to shared folders at specific locations
+        echo "runner-name=$RUNNER_NAME" >>$GITHUB_OUTPUT
+        echo "runner-environment=$RUNNER_ENVIRONMENT" >>$GITHUB_OUTPUT
+        echo "runner-os=$RUNNER_OS" >>$GITHUB_OUTPUT
+        echo "runner-arch=$RUNNER_ARCH" >>$GITHUB_OUTPUT
+        # reference path for autofs mounts to initialize
+        df -h $MNT_DEPLOY_DIR/ $MNT_DL_DIR/ $MNT_SSTATE_DIR/ 2>/dev/null || true
+        mnt_deploy_dir=$(df -TP $MNT_DEPLOY_DIR | tail -n -1 | grep -E '(cifs|nfs)' | awk '{print $7}' || echo '')
+        mnt_dl_dir=$(df -TP $MNT_DL_DIR | tail -n -1  | grep -E '(cifs|nfs)'| awk '{print $7}' || echo '')
+        mnt_sstate_dir=$(df -TP $MNT_SSTATE_DIR | tail -n -1  | grep -E '(cifs|nfs)'| awk '{print $7}' || echo '')
+        echo "mnt-deploy-dir=$mnt_deploy_dir" >>$GITHUB_OUTPUT
+        echo "mnt-dl-dir=$mnt_dl_dir" >>$GITHUB_OUTPUT
+        echo "mnt-sstate-dir=$mnt_sstate_dir" >>$GITHUB_OUTPUT
+    - env:
+        RUNNER_NAME: ${{ steps.gen-outputs.outputs.runner-name }}
+        RUNNER_ENVIRONMENT: ${{ steps.gen-outputs.outputs.runner-environment }}
+        RUNNER_OS: ${{ steps.gen-outputs.outputs.runner-os }}
+        RUNNER_ARCH: ${{ steps.gen-outputs.outputs.runner-arch }}
+        MNT_DEPLOY_DIR: ${{ steps.gen-outputs.outputs.mnt-deploy-dir }}
+        MNT_DL_DIR: ${{ steps.gen-outputs.outputs.mnt-dl-dir }}
+        MNT_SSTATE_DIR: ${{ steps.gen-outputs.outputs.mnt-sstate-dir }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### $RUNNER_NAME $RUNNER_ENVIRONMENT $RUNNER_OS $RUNNER_ARCH
+        ~~~ text
+        $(df -h $MNT_DEPLOY_DIR/ $MNT_DL_DIR/ $MNT_SSTATE_DIR/ 2>/dev/null || true)
+        ~~~
+        EOF

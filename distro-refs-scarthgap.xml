@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="remote-distro-core" fetch="https://github.com/distro-core" alias="origin"/>
+  <remote name="remote-distro-core-curated-mirrors" fetch="https://github.com/distro-core-curated-mirrors" alias="origin"/>
+
+  <default sync-s="true" sync-tags="false"/>
+
+  <project name=".github" path="workflows/distro-core.github" remote="remote-distro-core" revision="5ffbb45737be94eabbd9f42bd6e946c3ebf28d15" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="distro-manifest" path="workflows/distro-core.manifest" remote="remote-distro-core" revision="d935aae6e477144c10a2367d52f862840b4d3bd5" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="meta-distro" path="layers/meta-distro" remote="remote-distro-core" revision="78bebfb5f95b00e181bb9921f69c5ec969074a69" upstream="main" dest-branch="main" groups="non-confidential,base">
+    <copyfile src="conf/templates/distro-core/bblayers.conf.sample" dest="build/default/conf/bblayers.conf"/>
+    <copyfile src="conf/templates/distro-core/conf-notes.txt" dest="build/default/conf/conf-notes.txt"/>
+    <copyfile src="conf/templates/distro-core/conf-summary.txt" dest="build/default/conf/conf-summary.txt"/>
+    <copyfile src="conf/templates/distro-core/local.conf.sample" dest="build/default/conf/local.conf"/>
+    <linkfile src=".gitignore" dest=".gitignore"/>
+    <linkfile src=".vscode" dest=".vscode"/>
+  </project>
+  <project name="meta-intel" path="layers/meta-intel" remote="remote-distro-core-curated-mirrors" revision="b61d5310fcb4e5077bb4b1de0228dc45ba69510f" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-intel"/>
+  </project>
+  <project name="meta-openembedded" path="layers/meta-openembedded" remote="remote-distro-core-curated-mirrors" revision="b8d1a14f7f3b76457c36752202ea7ae5881b6654" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.openembedded.org/meta-openembedded"/>
+  </project>
+  <project name="meta-raspberrypi" path="layers/meta-raspberrypi" remote="remote-distro-core-curated-mirrors" revision="6df7e028a2b7b2d8cab0745dc0ed2eebc3742a17" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/agherzan/meta-raspberrypi.git"/>
+  </project>
+  <project name="meta-secure-core" path="layers/meta-secure-core" remote="remote-distro-core-curated-mirrors" revision="0aa7452355abc39b700f8787eab1b655f6099407" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/Wind-River/meta-secure-core.git"/>
+  </project>
+  <project name="meta-selinux" path="layers/meta-selinux" remote="remote-distro-core-curated-mirrors" revision="3aff015697fa056b4af83b1c9ba44eca346a8a37" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-selinux"/>
+  </project>
+  <project name="meta-tegra" path="layers/meta-tegra" remote="remote-distro-core-curated-mirrors" revision="8ca5d550a184f434600cfbba33892bc8c34f7e81" upstream="scarthgap-l4t-r35.x" dest-branch="scarthgap-l4t-r35.x" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/OE4T/meta-tegra.git"/>
+  </project>
+  <project name="meta-updater" path="layers/meta-updater" remote="remote-distro-core-curated-mirrors" revision="fa550d14caebb16fede2a428ac0db66f2d0f893b" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/uptane/meta-updater.git"/>
+  </project>
+  <project name="meta-virtualization" path="layers/meta-virtualization" remote="remote-distro-core-curated-mirrors" revision="450941a1b6df96285691e8c23d4f332d3c88a994" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-virtualization"/>
+  </project>
+  <project name="poky" path="layers/poky" remote="remote-distro-core-curated-mirrors" revision="47b43a94da9f512a12f3294447290690dcee91d4" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/poky"/>
+  </project>
+  <project name="workflow-com-cexpress-bt" path="workflows/workflows-com-cexpress-bt" remote="remote-distro-core" revision="0c97c10846d2e86d22d7e8c9a510a9ce8df6be26" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflow-com-cexpress-sl" path="workflows/workflows-com-cexpress-sl" remote="remote-distro-core" revision="328ce388c939fbbd626083c6aaba9272c400ade9" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflow-sbc-gene-bt05" path="workflows/workflows-sbc-gene-bt05" remote="remote-distro-core" revision="ef8bdf0c3f454a7a961f2ebc2816aca6a4187e89" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflow-sbc-pine64-star64" path="workflows/workflows-sbc-pine64-star64" remote="remote-distro-core" revision="c4f286611df6b45bb8713d4b349f5b495a411921" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflow-sbc-raspberrypi5" path="workflows/workflows-sbc-raspberrypi5" remote="remote-distro-core" revision="bdf1bac14122a91622a6d2338984c0ce3043b9d8" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflow-sbc-xavier-nx-devkit" path="workflows/workflows-sbc-xavier-nx-devkit" remote="remote-distro-core" revision="5f5348dfdd587a6e5a8526f293b7be09e317ac26" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+</manifest>

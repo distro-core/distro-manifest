@@ -1,0 +1,137 @@
+name: Images Build
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+      timeout-minutes:
+        description: Caller supplies the runner timeout
+        required: true
+        type: number
+      DISTRO:
+        description: Caller supplies the DISTRO
+        required: true
+        type: string
+      MACHINE:
+        description: Caller supplies the MACHINE
+        required: true
+        type: string
+      TARGETS_CLEAN:
+        description: OPTIONAL Caller supplies TARGETS_CLEAN as a space seperated list
+        required: false
+        type: string
+      TARGETS_FETCH:
+        description: OPTIONAL Caller supplies TARGETS_FETCH as a space seperated list
+        required: false
+        type: string
+      TARGETS_BEFORE:
+        description: OPTIONAL Caller supplies TARGETS_BEFORE as a space seperated list
+        required: false
+        type: string
+      TARGETS:
+        description: Caller supplies the TARGETS as a space seperated list
+        required: true
+        type: string
+      TARGET_FLAGS:
+        description: OPTIONAL Caller supplies TARGET_FLAGS
+        required: false
+        type: string
+      MANIFEST_COMMIT_ID:
+        description: OPTIONAL Caller supplies MANIFEST_COMMIT_ID
+        required: false
+        type: string
+      DEPLOY_DIR:
+        description: OPTIONAL Caller supplies DEPLOY_DIR
+        required: false
+        type: string
+      DL_DIR:
+        description: OPTIONAL Caller supplies DL_DIR
+        required: false
+        type: string
+      SSTATE_DIR:
+        description: OPTIONAL Caller supplies SSTATE_DIR
+        required: false
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # bitbake the targets; the job uses the workspace contents and supplied
+  # inputs to generate the artifacts.
+
+  workflow:
+    runs-on: ${{ inputs.runner-name }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      DISTRO: ${{ inputs.DISTRO }}
+      MACHINE: ${{ inputs.MACHINE }}
+      TARGETS_FETCH: ${{ inputs.TARGETS_FETCH }}
+      TARGETS_CLEAN: ${{ inputs.TARGETS_CLEAN }}
+      TARGETS_BEFORE: ${{ inputs.TARGETS_BEFORE }}
+      TARGETS: ${{ inputs.TARGETS }}
+      TARGET_FLAGS: ${{ inputs.TARGET_FLAGS }}
+      # MANIFEST_NAME:
+      # MANIFEST_REF:
+      MANIFEST_COMMIT_ID: ${{ inputs.MANIFEST_COMMIT_ID }}
+      # must be available in wrapper scripts/oe-init-build-env
+      # BB_NO_NETWORK:
+      # BB_NUMBER_THREADS:
+      # PARALLEL_MAKE:
+      # DL_DIR: ${{ github.workspace }}/build/downloads
+      # SSTATE_DIR: ${{ github.workspace }}/build/sstate-cache
+      # EXTRA_USER_CLASSES:
+      # SOURCE_MIRROR_URL:
+      # SSTATE_MIRRORS:
+      # MEM_PER_CPU_MESSAGE: 0
+    steps:
+    - run: |
+        : environment
+        # avoid OOM with limited resources
+        echo "BB_NUMBER_THREADS=$(( $(nproc) / 2 ))" >>$GITHUB_ENV
+        echo "PARALLEL_MAKE=-j $(( $(nproc) / 2 ))" >>$GITHUB_ENV
+        [[ -n "${{ inputs.DL_DIR }}" ]] && echo "DL_DIR=${{ inputs.DL_DIR }}" >>$GITHUB_ENV || true
+        [[ -n "${{ inputs.SSTATE_DIR }}" ]] && echo "SSTATE_DIR=${{ inputs.SSTATE_DIR }}" >>$GITHUB_ENV || true
+        git config --global --unset safe.directory || true
+        # DL_DIR NFS /etc/exports all_squash
+        [[ -n "$TARGETS_FETCH" ]] && git config --global --add safe.directory '*'
+    - run: |
+        : execute bitbake
+        {
+        TEMPLATECONF=$GITHUB_WORKSPACE/layers/meta-distro/conf/templates/$DISTRO \
+        source $GITHUB_WORKSPACE/.repo/manifests/scripts/oe-init-build-env build/$DISTRO
+        } >/dev/null
+        rm -f *.log
+        touch bitbake-error.log bitbake-warn.log
+        [[ -n "$TARGETS_FETCH" ]] && bitbake --runall=fetch $TARGETS_FETCH
+        [[ -n "$TARGETS_CLEAN" ]] && bitbake --cmd cleansstate $TARGETS_CLEAN
+        [[ -n "$TARGETS_BEFORE" ]] && bitbake $TARGET_FLAGS $TARGETS_BEFORE
+        [[ -n "$TARGETS" ]] && bitbake $TARGET_FLAGS $TARGETS
+    - if: always()
+      run: |
+        : generate summary
+        git config --global --unset safe.directory || true
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### $DISTRO $MACHINE $TARGETS
+        ~~~ text
+        DL_DIR: $DL_DIR
+        SSTATE_DIR: $SSTATE_DIR
+        TARGETS_FETCH: $TARGETS_FETCH
+        TARGETS_CLEAN: $TARGETS_CLEAN
+        TARGETS_BEFORE: $TARGETS_BEFORE
+        TARGETS: $TARGETS
+        $(cat build/$DISTRO/bitbake-error.log)
+        $(cat build/$DISTRO/bitbake-warn.log)
+        ~~~
+        EOF

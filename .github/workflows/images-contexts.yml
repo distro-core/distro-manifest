@@ -1,0 +1,46 @@
+name: Images Contexts
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # get the github, inputs and runner contexts
+
+  workflow:
+    runs-on: ${{ inputs.runner-name }}
+    steps:
+    - env:
+        CONTEXT_GITHUB: ${{ toJson(github) }}
+        CONTEXT_INPUTS: ${{ toJson(inputs) }}
+        CONTEXT_RUNNER: ${{ toJson(runner) }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### CONTEXT_GITHUB
+        ~~~ json
+        $CONTEXT_GITHUB
+        ~~~
+        ### CONTEXT_INPUTS
+        ~~~ json
+        $CONTEXT_INPUTS
+        ~~~
+        ### CONTEXT_RUNNER
+        ~~~ json
+        $CONTEXT_RUNNER
+        ~~~

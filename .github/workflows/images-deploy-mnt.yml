@@ -1,0 +1,101 @@
+name: Images Deploy Mounts
+
+# This reusable workflow is called with appropriate parameters to
+# perform a sync for common build artifacts.
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+      timeout-minutes:
+        description: Caller supplies the runner timeout
+        required: true
+        type: number
+      DISTRO:
+        description: Caller supplies the DISTRO
+        required: true
+        type: string
+      MACHINE:
+        description: Caller supplies the MACHINE
+        required: true
+        type: string
+      DL_DIR:
+        description: Caller supplies DL_DIR
+        required: false
+        type: string
+      SSTATE_DIR:
+        description: Caller supplies SSTATE_DIR
+        required: false
+        type: string
+      MNT_DEPLOY_DIR:
+        description: Caller supplies MNT_DEPLOY_DIR
+        required: false
+        type: string
+      MNT_DL_DIR:
+        description: Caller supplies MNT_DL_DIR
+        required: false
+        type: string
+      MNT_SSTATE_DIR:
+        description: Caller supplies MNT_SSTATE_DIR
+        required: false
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # build artifacts are sync to the destination
+
+  workflow:
+    runs-on: ${{ inputs.runner-name }}
+    env:
+      DISTRO: ${{ inputs.DISTRO }}
+      MACHINE: ${{ inputs.MACHINE }}
+    steps:
+    - run: |
+        : environment
+        [[ -n "${{ inputs.DL_DIR }}" ]] && echo "DL_DIR=${{ inputs.DL_DIR }}" >>$GITHUB_ENV || echo "DL_DIR=${{ github.workspace }}/build/downloads" >>$GITHUB_ENV
+        [[ -n "${{ inputs.SSTATE_DIR }}" ]] && echo "SSTATE_DIR=${{ inputs.SSTATE_DIR }}" >>$GITHUB_ENV || echo "SSTATE_DIR=${{ github.workspace }}/build/sstate-cache" >>$GITHUB_ENV
+        [[ -n "${{ inputs.MNT_DL_DIR }}" ]] && echo "MNT_DL_DIR=${{ inputs.MNT_DL_DIR }}" >>$GITHUB_ENV || echo "MNT_DL_DIR=/mnt/downloads" >>$GITHUB_ENV
+        [[ -n "${{ inputs.MNT_SSTATE_DIR }}" ]] && echo "MNT_SSTATE_DIR=${{ inputs.MNT_SSTATE_DIR }}" >>$GITHUB_ENV || echo "MNT_SSTATE_DIR=/mnt/sstate-cache" >>$GITHUB_ENV
+    - run: |
+        : execute DL_DIR
+        # MNT_DL_DIR_FSTYPE=$(df -TP $MNT_DL_DIR | tail -n -1 | awk '{print $2}' | grep -E 'cifs|nfs')
+        # if [[ -n "$MNT_DL_DIR_FSTYPE" && -d $DL_DIR && -d $MNT_DL_DIR && $DL_DIR != $MNT_DL_DIR ]] ; then
+        #   echo rsync -av --times --no-owner --no-group --no-acls --ignore-existing \
+        #     --exclude 'git2/*' --exclude 'uninative/*' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+        #     $DL_DIR/ $MNT_DL_DIR/
+        #     echo find $MNT_SSTATE_DIR -atime +90 -daystart -delete
+        # fi
+        : generate summary
+        # cat <<EOF >>$GITHUB_STEP_SUMMARY
+        # ### DEPLOY-MNT
+        # ~~~ text
+        # $DL_DIR $MNT_DL_DIR $MNT_DL_DIR_FSTYPE
+        # $(df -TP $MNT_DL_DIR | tail -n -1)
+        # ~~~
+        # EOF
+    - run: |
+        : execute SSTATE_DIR
+        # df -TP $MNT_SSTATE_DIR | tail -n -1 | awk '{print $2}' | grep -E 'cifs|nfs'
+        # MNT_SSTATE_DIR_FSTYPE=$(df -TP $MNT_SSTATE_DIR | tail -n -1 | awk '{print $2}' | grep -E 'cifs|nfs')
+        # if [[ -n "$MNT_SSTATE_DIR_FSTYPE" && -d $SSTATE_DIR && -d $MNT_SSTATE_DIR && $SSTATE_DIR != $MNT_SSTATE_DIR ]] ; then
+        #     echo rsync -av --times --no-owner --no-group --no-acls --ignore-existing \
+        #       $SSTATE_DIR/ $MNT_SSTATE_DIR/
+        #     echo find $MNT_SSTATE_DIR -atime +90 -daystart -delete
+        # fi
+        : generate summary
+        # cat <<EOF >>$GITHUB_STEP_SUMMARY
+        # ### DEPLOY-MNT
+        # ~~~ text
+        # $SSTATE_DIR $MNT_SSTATE_DIR $MNT_SSTATE_DIR_FSTYPE
+        # $(df -TP $MNT_SSTATE_DIR | tail -n -1)
+        # ~~~
+        # EOF

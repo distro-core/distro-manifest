@@ -1,0 +1,65 @@
+name: Images Clean
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        description: Caller supplies the runner label
+        required: true
+        type: string
+      DISTRO:
+        description: Caller supplies the DISTRO
+        required: true
+        type: string
+      DL_DIR:
+        description: Caller supplies DL_DIR Path
+        required: false
+        type: string
+      SSTATE_DIR:
+        description: Caller supplies SSTATE_DIR Path
+        required: false
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # remove the workspace contents; self-hosted runners retain the
+  # workspace contents between jobs.
+
+  workflow:
+    runs-on: ${{ inputs.runner-name }}
+    steps:
+    - run: |
+        : environment
+    - if: ${{ inputs.DL_DIR != '' }}
+      run: |
+        : clean DL_DIR
+        # rm -fr ${{ inputs.DL_DIR }}/*
+    - if: ${{ inputs.SSTATE_DIR != '' }}
+      run: |
+        : clean SSTATE_DIR
+        # rm -fr ${{ inputs.SSTATE_DIR }}/*
+    - run: |
+        : clean ${{ github.workspace }}/build
+        rm -fr ${{ github.workspace }}/build/${{ inputs.DISTRO }}/*.{log,lock,sock}
+        rm -fr ${{ github.workspace }}/build/${{ inputs.DISTRO }}/conf/{.*,*}
+    - run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        ### CLEANUP
+        ~~~ text
+        # DL_DIR: ${{ inputs.DL_DIR }}
+        # SSTATE_DIR: ${{ inputs.SSTATE_DIR }}
+        ${{ github.workspace }}/build/${{ inputs.DISTRO }}/*.{log,lock,sock}
+        ${{ github.workspace }}/build/${{ inputs.DISTRO }}/conf/{.*,*}
+        ~~~
+        EOF
