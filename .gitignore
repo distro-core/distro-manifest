@@ -1,0 +1,19 @@
+# .gitignore
+
+__pycache__/
+.git/
+
+/.repo/
+!/.repo/manifests/
+/build/
+/layers/
+!/layers/meta-distro
+
+*.swp
+*.un~
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+.history
