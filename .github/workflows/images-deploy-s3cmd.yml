@@ -1,0 +1,126 @@
+name: Workflow, Images Deploy S3CMD
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ENDPOINT_URL:
+        description: Secret, S3 DNS Endpoint
+        required: true
+      AWS_ACCESS_KEY_ID:
+        description: Secret, S3 Access Key ID
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        description: Secret, S3 Secret Access Key
+        required: true
+    inputs:
+      runs-on:
+        description: runner label
+        required: true
+        type: string
+      src_dir:
+        description: source
+        required: true
+        type: string
+      dst_dir:
+        description: destination
+        required: true
+        type: string
+      expiry_days:
+        description: expiry
+        required: false
+        type: number
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # build artifacts are sync to the destination
+
+  workflow:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 360
+    env:
+      SRC_DIR: ${{ inputs.src_dir }}
+      DST_DIR: ${{ inputs.dst_dir }}
+      S3CMD_CMD: ${{ github.workspace }}/s3cmd/bin/s3cmd
+      S3CMD_CONF: ${{ github.workspace }}/s3cmd.conf
+    steps:
+    - id: environment
+      run: |
+        : environment based on runtime
+    - id: install
+      run: |
+        : install
+        pip install --upgrade --target $(dirname $(dirname $S3CMD_CMD)) s3cmd
+    - id: configure
+      env:
+        AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        : configure
+        printf "%s\n%s\n\n%s\n%s\n%s\n\n\n\n\ny\n" \
+          "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" "$AWS_ENDPOINT_URL" "%(bucket)s.$AWS_ENDPOINT_URL" "encrypted" \
+          | $S3CMD_CMD --config $S3CMD_CONF --configure
+    - id: configure-expiry
+      if: ${{ inputs.expiry_days }}
+      env:
+        EXPIRY_DAYS: ${{ inputs.expiry_days }}
+      run: |
+        : configure-expiry
+        cat >$GITHUB_WORKSPACE/lifecycle.xml <<EOF
+        <?xml version="1.0" ?>
+        <LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <Rule>
+        <ID>Prune files after $EXPIRY_DAYS days</ID>
+        <Prefix>/</Prefix>
+        <Status>Enabled</Status>
+        <Expiration>
+        <Days>$EXPIRY_DAYS</Days>
+        </Expiration>
+        </Rule>
+        </LifecycleConfiguration>
+        EOF
+        $S3CMD_CMD --config $S3CMD_CONF setlifecycle $GITHUB_WORKSPACE/lifecycle.xml $DST_DIR
+        rm -f $GITHUB_WORKSPACE/lifecycle.xml
+    - id: execute
+      run: |
+        : execute
+        if [[ -d $SRC_DIR ]] ; then
+          $S3CMD_CMD --config $S3CMD_CONF \
+            sync --recursive --acl-public --preserve --no-delete-removed --progress \
+            --exclude 'git2/' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+            $SRC_DIR/ $DST_DIR/
+        fi
+    - id: gen-outputs
+      run: |
+        : generate outputs
+    - id: gen-summary
+      if: ${{ success() || failure() }}
+      run: |
+        : generate summary
+        # rm -f $S3CMD_CONF
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        #### Deploy s3cmd
+        Statistics
+        ~~~ text
+        TBD
+        ~~~
+        Paths
+        ~~~ text
+        SRC_DIR: $SRC_DIR
+        $(df -TP $SRC_DIR | tail -n -1)
+        ~~~
+        ~~~ text
+        DST_DIR: $DST_DIR
+        $($S3CMD du $DST_DIR | tail -n -1)
+        ~~~
+        EOF

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="remote-distro-core" fetch="https://github.com/distro-core" alias="origin"/>
+  <remote name="remote-distro-core-curated-mirrors" fetch="https://github.com/distro-core-curated-mirrors" alias="origin"/>
+  
+  <default sync-s="true" sync-tags="false"/>
+  
+  <project name="meta-distro" path="layers/meta-distro" remote="remote-distro-core" revision="3355604fb453134e7a5cfa50ccf9c9598a2ae6db" upstream="main" dest-branch="main" groups="non-confidential,base">
+    <linkfile src=".gitignore" dest=".gitignore"/>
+    <linkfile src=".vscode" dest=".vscode"/>
+  </project>
+  <project name="meta-intel" path="layers/meta-intel" remote="remote-distro-core-curated-mirrors" revision="0be954e82f09d235d2b5e5ea01bb62ffa8d0b5f7" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-intel"/>
+  </project>
+  <project name="meta-mingw" path="layers/meta-mingw" remote="remote-distro-core-curated-mirrors" revision="acbba477893ef87388effc4679b7f40ee49fc852" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-mingw"/>
+  </project>
+  <project name="meta-openembedded" path="layers/meta-openembedded" remote="remote-distro-core-curated-mirrors" revision="3c293e14492f01e22a64004e2330fb620c27578a" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.openembedded.org/meta-openembedded"/>
+  </project>
+  <project name="meta-raspberrypi" path="layers/meta-raspberrypi" remote="remote-distro-core-curated-mirrors" revision="6df7e028a2b7b2d8cab0745dc0ed2eebc3742a17" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/agherzan/meta-raspberrypi.git"/>
+  </project>
+  <project name="meta-riscv" path="layers/meta-riscv" remote="remote-distro-core-curated-mirrors" revision="76727db91108f53afc8a5b72651167c4446b5fcb" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/riscv/meta-riscv.git"/>
+  </project>
+  <project name="meta-secure-core" path="layers/meta-secure-core" remote="remote-distro-core-curated-mirrors" revision="7a51f091cccfb8f629ce962f13b7b45d23005093" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/Wind-River/meta-secure-core.git"/>
+  </project>
+  <project name="meta-selinux" path="layers/meta-selinux" remote="remote-distro-core-curated-mirrors" revision="3aff015697fa056b4af83b1c9ba44eca346a8a37" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-selinux"/>
+  </project>
+  <project name="meta-tegra" path="layers/meta-tegra" remote="remote-distro-core-curated-mirrors" revision="c7e77d1b8ef7377b8fa9064b1c800f0c354db927" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/OE4T/meta-tegra.git"/>
+  </project>
+  <project name="meta-updater" path="layers/meta-updater" remote="remote-distro-core-curated-mirrors" revision="fa550d14caebb16fede2a428ac0db66f2d0f893b" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/uptane/meta-updater.git"/>
+  </project>
+  <project name="meta-virtualization" path="layers/meta-virtualization" remote="remote-distro-core-curated-mirrors" revision="2ec66285d050ef3cd29a5ea57c71341e6b17b36f" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-virtualization"/>
+  </project>
+  <project name="poky" path="layers/poky" remote="remote-distro-core-curated-mirrors" revision="7117d115eab7351ecf21388ec720a3bb5f4a9b30" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-s="true" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/poky"/>
+  </project>
+  <project name="workflows-com-cexpress-bt" path="workflows/workflows-com-cexpress-bt" remote="remote-distro-core" revision="25d8c787208132f2a76b2580dacbe31bd2e117a1" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflows-com-cexpress-sl" path="workflows/workflows-com-cexpress-sl" remote="remote-distro-core" revision="8e3b2ceab712253c1873e879b510386aad866c2f" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflows-sbc-gene-bt05" path="workflows/workflows-sbc-gene-bt05" remote="remote-distro-core" revision="5b081f26c864fe617fa5d617bf0d509528781640" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflows-sbc-pine64-star64" path="workflows/workflows-sbc-pine64-star64" remote="remote-distro-core" revision="4620fcc8861d90a4ca601c30f10c9a696710c162" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflows-sbc-raspberrypi5" path="workflows/workflows-sbc-raspberrypi5" remote="remote-distro-core" revision="e802bd3144d850e18e6d570d16a676fbb45e19db" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+  <project name="workflows-sbc-xavier-nx-devkit" path="workflows/workflows-sbc-xavier-nx-devkit" remote="remote-distro-core" revision="2518a4ec02c47bf8f29cbebfa3d6e1fb746ac8de" upstream="main" dest-branch="main" groups="non-confidential,workflows"/>
+</manifest>

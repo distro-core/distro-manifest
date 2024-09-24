@@ -1,0 +1,212 @@
+name: Workflow, Images Build
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    secrets:
+      ACTIONS_GITHUB_TOKEN:
+        description: Secret, GITHUB_TOKEN
+        required: false
+    inputs:
+      runs-on:
+        description: runner label
+        required: true
+        type: string
+      timeout-minutes:
+        description: runner timeout
+        required: true
+        type: number
+      DISTRO:
+        description: DISTRO passed to build
+        required: true
+        type: string
+      MACHINE:
+        description: MACHINE passed to build
+        required: true
+        type: string
+      TARGETS:
+        description: TARGETS passed to build
+        required: false
+        type: string
+      TARGET_FLAGS:
+        description: TARGET_FLAGS passed to build
+        required: false
+        type: string
+      MANIFEST_NAME:
+        description: repo manifest name
+        required: false
+        type: string
+      MANIFEST_REF:
+        description: repo manifest branch/tag
+        required: false
+        type: string
+      MANIFEST_COMMIT_ID:
+        description: repo manifest commit-id
+        required: false
+        type: string
+      DL_DIR:
+        description: runner network share DL_DIR artifacts
+        required: false
+        type: string
+      SSTATE_DIR:
+        description: runner network share SSSTATE_DIR artifacts
+        required: false
+        type: string
+      DRY_RUN:
+        description: DRY_RUN flag --dry-run
+        required: false
+        type: boolean
+    outputs:
+      targets:
+        value: ${{ jobs.workflow.outputs.targets }}
+      deploy_dir:
+        value: ${{ jobs.workflow.outputs.deploy_dir }}
+      distro_codename:
+        value: ${{ jobs.workflow.outputs.distro_codename }}
+      dl_dir:
+        value: ${{ jobs.workflow.outputs.dl_dir }}
+      sstate_dir:
+        value: ${{ jobs.workflow.outputs.sstate_dir }}
+      tmpdir:
+        value: ${{ jobs.workflow.outputs.tmpdir }}
+      topdir:
+        value: ${{ jobs.workflow.outputs.topdir }}
+      build:
+        value: ${{ jobs.workflow.outputs.build }}
+      error:
+        value: ${{ jobs.workflow.outputs.error }}
+      warn:
+        value: ${{ jobs.workflow.outputs.warn }}
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # bitbake the targets; the job uses the workspace contents and supplied
+  # inputs to generate the artifacts.
+
+  workflow:
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      targets: ${{ steps.gen-outputs.outputs.targets }}
+      distro_codename: ${{ steps.gen-outputs.outputs.distro_codename }}
+      deploy_dir: ${{ steps.gen-outputs.outputs.deploy_dir }}
+      dl_dir: ${{ steps.gen-outputs.outputs.dl_dir }}
+      sstate_dir: ${{ steps.gen-outputs.outputs.sstate_dir }}
+      tmpdir: ${{ steps.gen-outputs.outputs.tmpdir }}
+      topdir: ${{ steps.gen-outputs.outputs.topdir }}
+      build: ${{ steps.gen-outputs.outputs.build }}
+      error: ${{ steps.gen-outputs.outputs.error }}
+      warn: ${{ steps.gen-outputs.outputs.warn }}
+    env:
+      DISTRO: ${{ inputs.DISTRO }}
+      MACHINE: ${{ inputs.MACHINE }}
+      TARGETS: ${{ inputs.TARGETS }}
+      TARGET_FLAGS: ${{ inputs.TARGET_FLAGS }}
+      DRY_RUN: ${{ inputs.DRY_RUN && '--dry-run' || '' }}
+    steps:
+    - id: environment
+      run: |
+        : environment based on runtime
+        # avoid OOM on runners with limited resources
+        # echo "BB_NUMBER_THREADS=$(( $(nproc) / 2 ))" >>$GITHUB_ENV
+        echo "PARALLEL_MAKE=-j $(( $(nproc) / 2 ))" >>$GITHUB_ENV
+        [[ -n "${{ inputs.DL_DIR }}" ]] && echo "DL_DIR=${{ inputs.DL_DIR }}" >>$GITHUB_ENV || true
+        [[ -n "${{ inputs.SSTATE_DIR }}" ]] && echo "SSTATE_DIR=${{ inputs.SSTATE_DIR }}" >>$GITHUB_ENV || true
+    - id: install
+      run: |
+        : install
+    - id: configure
+      run: |
+        : configure
+    - id: execute
+      timeout-minutes: ${{ inputs.timeout-minutes }}
+      run: |
+        : execute
+        rm -fr build/$DISTRO/conf
+        { TEMPLATECONF=$GITHUB_WORKSPACE/layers/meta-distro/conf/templates/$DISTRO \
+        source $GITHUB_WORKSPACE/.repo/manifests/scripts/oe-init-build-env build/$DISTRO ; \
+        } >/dev/null
+        rm -f *.log
+        touch bitbake.log bitbake-error.log bitbake-warn.log
+        [[ "$TARGET_FLAGS" =~ .*"--runall=fetch".* ]] && { git config --global --unset safe.directory ; git config --global --add safe.directory '*' ; } || true
+        git config --list
+        : create env vars for gen-outputs
+        echo "bbvar_distro_codename=$(bitbake-getvar --quiet --value DISTRO_CODENAME)" >>$GITHUB_ENV
+        echo "bbvar_cve_check_summary_file_name=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value CVE_CHECK_SUMMARY_FILE_NAME))" >>$GITHUB_ENV
+        echo "bbvar_deploy_dir=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value DEPLOY_DIR))" >>$GITHUB_ENV
+        echo "bbvar_dl_dir=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value DL_DIR))" >>$GITHUB_ENV
+        echo "bbvar_sstate_dir=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value SSTATE_DIR))" >>$GITHUB_ENV
+        echo "bbvar_tmpdir=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value TMPDIR))" >>$GITHUB_ENV
+        echo "bbvar_topdir=$(realpath --relative-base=$GITHUB_WORKSPACE $(bitbake-getvar --quiet --value TOPDIR))" >>$GITHUB_ENV
+        bbvar_rc=0
+        if [[ -n "$TARGETS" ]]; then
+        bitbake $TARGETS $TARGET_FLAGS $DRY_RUN || bbvar_rc=$?
+        fi
+        git config --global --unset safe.directory || true
+        echo "bbvar_rc=$bbvar_rc" >>$GITHUB_ENV
+    - id: gen-outputs
+      run: |
+        : generate outputs
+        echo "targets=$TARGETS $TARGET_FLAGS $DRY_RUN" >>$GITHUB_OUTPUT
+        echo "distro_codename=$bbvar_distro_codename" >>$GITHUB_OUTPUT
+        echo "cve_check_summary_file_name=$bbvar_cve_check_summary_file_name" >>$GITHUB_OUTPUT
+        echo "deploy_dir=$bbvar_deploy_dir" >>$GITHUB_OUTPUT
+        echo "dl_dir=$bbvar_dl_dir" >>$GITHUB_OUTPUT
+        echo "sstate_dir=$bbvar_sstate_dir" >>$GITHUB_OUTPUT
+        echo "tmpdir=$bbvar_tmpdir" >>$GITHUB_OUTPUT
+        echo "topdir=$bbvar_topdir" >>$GITHUB_OUTPUT
+        printf "build<<EOF\n%s\nEOF\n" "$(sed -n '/^Build Configuration:/,/^$/p' bitbake.log | head -n 1)" >>$GITHUB_OUTPUT
+        printf "error<<EOF\n%s\nEOF\n" "$(cat bitbake-error.log | head)" >>$GITHUB_OUTPUT
+        printf "warn<<EOF\n%s\nEOF\n" "$(cat bitbake-warn.log | head)" >>$GITHUB_OUTPUT
+    - id: gen-summary
+      if: ${{ success() || failure() }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        #### ${{ steps.gen-outputs.outputs.distro_codename }} $DISTRO $MACHINE ${{ steps.gen-outputs.outputs.targets }} ${{ steps.gen-outputs.outcome }}
+        Configuration
+        ~~~ text
+        ${{ steps.gen-outputs.outputs.build }}
+        ~~~
+        Errors
+        ~~~ text
+        ${{ steps.gen-outputs.outputs.error }}
+        ~~~
+        Warnings
+        ~~~ text
+        ${{ steps.gen-outputs.outputs.warn }}
+        ~~~
+        Paths
+        ~~~ text
+        CVE_CHECK_SUMMARY_FILE_NAME: ${{ steps.gen-outputs.outputs.cve_check_summary_file_name }}
+        $(cat ${{ steps.gen-outputs.outputs.cve_check_summary_file_name }})
+        ~~~
+        ~~~ text
+        DEPLOY_DIR: ${{ steps.gen-outputs.outputs.deploy_dir }}
+        $(df -TP ${{ steps.gen-outputs.outputs.deploy_dir }} | tail -n -1)
+        ~~~
+        ~~~ text
+        DL_DIR: ${{ steps.gen-outputs.outputs.dl_dir }}
+        $(df -TP ${{ steps.gen-outputs.outputs.dl_dir }} | tail -n -1)
+        ~~~
+        ~~~ text
+        SSTATE_DIR: ${{ steps.gen-outputs.outputs.sstate_dir }}
+        $(df -TP ${{ steps.gen-outputs.outputs.sstate_dir }} | tail -n -1)
+        ~~~
+        ~~~ text
+        TMPDIR: ${{ steps.gen-outputs.outputs.tmpdir }}
+        $(df -TP ${{ steps.gen-outputs.outputs.tmpdir }} | tail -n -1)
+        ~~~
+        ~~~ text
+        TOPDIR: ${{ steps.gen-outputs.outputs.topdir }}
+        $(df -TP ${{ steps.gen-outputs.outputs.topdir }} | tail -n -1)
+        ~~~
+        EOF

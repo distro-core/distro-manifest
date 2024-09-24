@@ -1,0 +1,83 @@
+name: Workflow, Images Deploy RSYNC
+
+# This reusable workflow is called with appropriate parameters to
+# perform a sync for common build artifacts.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: runner label
+        required: true
+        type: string
+      src_dir:
+        description: source
+        required: true
+        type: string
+      dst_dir:
+        description: destination
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # build artifacts are sync to the destination
+
+  workflow:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      SRC_DIR: ${{ inputs.src_dir }}
+      DST_DIR: ${{ inputs.dst_dir }}
+      RSYNC_CMD: rsync
+      RSYNC_CONF:
+    steps:
+    - id: environment
+      run: |
+        : environment based on runtime
+    - id: install
+      run: |
+        : install
+    - id: configure
+      run: |
+        : configure
+    - id: execute
+      run: |
+        : execute
+        DST_DIR_FSTYPE=$(df -TP $DST_DIR | tail -n -1 | awk '{print $2}' | grep -E 'cifs|nfs') >>$GITHUB_ENV
+        echo "DST_DIR_FSTYPE=$DST_DIR_FSTYPE" >>$GITHUB_ENV
+        if [[ -n "$DST_DIR_FSTYPE" && -d $SRC_DIR && -d $DST_DIR ]] ; then
+          $RSYNC_CMD -ah --no-links --no-owner --no-group --no-acls --times --atimes --no-devices --no-specials --ignore-existing --prune-empty-dirs --info skip0,stats2 \
+            --exclude 'git2/' --exclude '*.done' --exclude '*.lock' --exclude 'tmp*' --exclude '*tmp' \
+            $SRC_DIR/ $DST_DIR/ | tee rsync-dir.log
+          find $SRC_DIR -type f | sed -e "s,$SRC_DIR,,g" | xargs -I{} touch --no-create --reference $SRC_DIR{} $DST_DIR{}
+        fi
+    - id: gen-outputs
+      run: |
+        : generate outputs
+    - id: gen-summary
+      if: ${{ success() || failure() }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        #### Deploy rsync
+        Statistics
+        ~~~ text
+        $(cat rsync-dir.log | tail -n -16)
+        ~~~
+        Paths
+        ~~~ text
+        SRC_DIR: $SRC_DIR
+        $(df -TP $SRC_DIR | tail -n -1)
+        ~~~
+        ~~~ text
+        DST_DIR: $DST_DIR $DST_DIR_FSTYPE
+        $(df -TP $DST_DIR | tail -n -1)
+        ~~~
+        EOF
+        rm -f rsync-dir.log

@@ -1,0 +1,141 @@
+name: Workflow, Images Repo Init/Sync
+
+# Reusable Workflow
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: runner label
+        required: true
+        type: string
+      MANIFEST_URL:
+        description: repo manifest url
+        required: true
+        type: string
+      MANIFEST_NAME:
+        description: repo manifest name
+        required: true
+        type: string
+      MANIFEST_REF:
+        description: repo manifest branch/tag
+        required: true
+        type: string
+    outputs:
+      manifest_url:
+        description: repo manifest url
+        value:  ${{ jobs.workflow.outputs.manifest_name }}
+      manifest_name:
+        description: repo manifest name
+        value:  ${{ jobs.workflow.outputs.manifest_name }}
+      manifest_ref:
+        description: repo manifest branch/tag/commit-id
+        value: ${{ jobs.workflow.outputs.manifest_ref }}
+      manifest_sha:
+        description: repo manifest commit-id
+        value: ${{ jobs.workflow.outputs.manifest_sha }}
+      manifest_xml_ref:
+        description: repo manifest as XML refs
+        value: ${{ jobs.workflow.outputs.manifest_xml_ref }}
+      manifest_xml_sha:
+        description: repo manifest as XML commit-id
+        value: ${{ jobs.workflow.outputs.manifest_xml_sha }}
+      manifest_json_ref:
+        description: repo manifest as JSON refs
+        value: ${{ jobs.workflow.outputs.manifest_json_ref }}
+      manifest_json_sha:
+        description: repo manifest as JSON commit-id
+        value: ${{ jobs.workflow.outputs.manifest_json_sha }}
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  workflow:
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      manifest_url: ${{ steps.gen-outputs.outputs.manifest_url }}
+      manifest_name: ${{ steps.gen-outputs.outputs.manifest_name }}
+      manifest_ref: ${{ steps.gen-outputs.outputs.manifest_ref }}
+      manifest_sha: ${{ steps.gen-outputs.outputs.manifest_sha }}
+      manifest_xml_ref: ${{ steps.gen-outputs.outputs.manifest_xml_ref }}
+      manifest_xml_sha: ${{ steps.gen-outputs.outputs.manifest_xml_sha }}
+      manifest_json_ref: ${{ steps.gen-outputs.outputs.manifest_json_ref }}
+      manifest_json_sha: ${{ steps.gen-outputs.outputs.manifest_json_sha }}
+    env:
+      REPO_CMD: ${{ github.workspace }}/repo
+      MANIFEST_URL: ${{ inputs.MANIFEST_URL }}
+      MANIFEST_NAME: ${{ inputs.MANIFEST_NAME }}
+      MANIFEST_REF: ${{ inputs.MANIFEST_REF }}
+    steps:
+    - run: |
+        : environment based on runtime
+    - run: |
+        : install
+        curl https://storage.googleapis.com/git-repo-downloads/repo >$REPO_CMD
+        chmod a+rx $REPO_CMD
+    - run: |
+        : configure
+        git config --global user.name "Actions Runner" || true
+        git config --global user.email "runner@localhost" || true
+        git config --list
+    - run: |
+        : execute repo init
+        $REPO_CMD init \
+          --manifest-url=$MANIFEST_URL --manifest-branch=$MANIFEST_REF --manifest-name=$MANIFEST_NAME \
+          --groups=default --no-clone-bundle
+    - run: |
+        : configure local-manifest
+        install -d .repo/local_manifests
+        rm -fr -- .repo/local_manifests/{*,.*} || true
+        cat <<EOF >.repo/local_manifests/local_manifest.xml
+        <?xml version="1.0" encoding="UTF-8"?>
+        <manifest>
+        <!-- <extend-project name="meta-distro" revision="${{ github.ref_name }}" /> -->
+        </manifest>
+        EOF
+    - run: |
+        : execute repo sync
+        $REPO_CMD sync --force-sync --force-checkout --force-remove-dirty
+        # $REPO_CMD forall -c 'printf "%s: %s\n" "$REPO_PROJECT" "$REPO_RREV" ; git checkout --track $(git remote)/$REPO_RREV'
+    - id: gen-outputs
+      run: |
+        : generate outputs
+        manifest_sha=$(git -C $GITHUB_WORKSPACE/.repo/manifests rev-parse HEAD)
+        echo "manifest_url=$MANIFEST_URL" >>$GITHUB_OUTPUT
+        echo "manifest_name=$MANIFEST_NAME" >>$GITHUB_OUTPUT
+        echo "manifest_ref=$MANIFEST_REF" >>$GITHUB_OUTPUT
+        echo "manifest_sha=$manifest_sha" >>$GITHUB_OUTPUT
+        # multiline output xml
+        manifest_xml_ref=$($REPO_CMD manifest --pretty)
+        manifest_xml_sha=$($REPO_CMD manifest --pretty --revision-as-HEAD)
+        printf "manifest_xml_ref<<EOF\n%s\nEOF\n" "$manifest_xml_ref" >>$GITHUB_OUTPUT
+        printf "manifest_xml_sha<<EOF\n%s\nEOF\n" "$manifest_xml_sha" >>$GITHUB_OUTPUT
+        # multiline output json
+        manifest_json_ref=$($REPO_CMD manifest --json --pretty)
+        manifest_json_sha=$($REPO_CMD manifest --json --pretty --revision-as-HEAD)
+        printf "manifest_json_ref<<EOF\n%s\nEOF\n" "$manifest_json_ref" >>$GITHUB_OUTPUT
+        printf "manifest_json_sha<<EOF\n%s\nEOF\n" "$manifest_json_sha" >>$GITHUB_OUTPUT
+    - if: ${{ success() || failure() }}
+      env:
+        MANIFEST_SHA: ${{ steps.gen-outputs.outputs.manifest_sha }}
+        MANIFEST_XML_REF: ${{ steps.gen-outputs.outputs.manifest_xml_ref }}
+        MANIFEST_XML_SHA: ${{ steps.gen-outputs.outputs.manifest_xml_sha }}
+        MANIFEST_JSON_REF: ${{ steps.gen-outputs.outputs.manifest_json_ref }}
+        MANIFEST_JSON_SHA: ${{ steps.gen-outputs.outputs.manifest_json_sha }}
+      run: |
+        : generate summary
+        cat <<EOF >$GITHUB_STEP_SUMMARY
+        #### $MANIFEST_NAME $MANIFEST_REF
+        commit-id $MANIFEST_SHA
+        ~~~ xml
+        $MANIFEST_XML_SHA
+        ~~~
+        ~~~ json
+        $MANIFEST_JSON_SHA
+        ~~~
+        EOF

@@ -1,0 +1,142 @@
+name: Workflow, Init Runner
+
+  # return some basic info about the host with the runner; the expected
+  # use case is to identify a self-hosted runner and return it's name
+  # which will correspond to an exclusive label attached to the same
+  # runner. also probe for mounts that may exist that are used during
+  # the deploy phase to duplicate caches for future workflows.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: runner runs-on
+        type: string
+        required: false
+      MNT_DEPLOY_DIR:
+        description: runner network share DEPLOY_DIR artifacts
+        type: string
+        default: /mnt/artifacts
+      MNT_DL_DIR:
+        description: runner network share DL_DIR artifacts
+        type: string
+        default: /mnt/downloads
+      MNT_SSTATE_DIR:
+        description: runner network share SSSTATE_DIR artifacts
+        type: string
+        default: /mnt/sstate-cache
+    outputs:
+      runs-on:
+        description: runner self-hosted runner-label matching runner.name
+        value: ${{ jobs.workflow.outputs.runs-on }}
+      runner-environment:
+        description: runner self-hosted
+        value: ${{ jobs.workflow.outputs.runner-environment }}
+      runner-os:
+        description: runner os
+        value: ${{ jobs.workflow.outputs.runner-arch }}
+      runner-arch:
+        description: runner cpu architecture
+        value: ${{ jobs.workflow.outputs.runner-arch }}
+      mnt_deploy_dir:
+        description: runner has network share at MNT_DEPLOY_DIR
+        value: ${{ jobs.workflow.outputs.mnt_dl_dir }}
+      mnt_dl_dir:
+        description: runner has network share at MNT_DL_DIR
+        value: ${{ jobs.workflow.outputs.mnt_dl_dir }}
+      mnt_sstate_dir:
+        description: runner has network share at MNT_SSTATE_DIR
+        value: ${{ jobs.workflow.outputs.mnt_sstate_dir }}
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # return some basic info about the host with the runner; the expected
+  # use case is to identify a self-hosted runner and return it's name
+  # which will correspond to an exclusive label attached to the same
+  # runner.
+
+  workflow:
+    runs-on: ${{ inputs.runs-on != '' && inputs.runs-on || 'self-hosted' }}
+    outputs:
+      runs-on: ${{ steps.gen-outputs.outputs.runs-on }}
+      runner-environment: ${{ steps.gen-outputs.outputs.runner-environment }}
+      runner-os: ${{ steps.gen-outputs.outputs.runner-os }}
+      runner-arch: ${{ steps.gen-outputs.outputs.runner-arch }}
+      mnt_deploy_dir: ${{ steps.gen-outputs.outputs.mnt_deploy_dir }}
+      mnt_dl_dir: ${{ steps.gen-outputs.outputs.mnt_dl_dir }}
+      mnt_sstate_dir: ${{ steps.gen-outputs.outputs.mnt_sstate_dir }}
+    steps:
+    - id: environment
+      run: |
+        : environment based on runtime
+    - id: install
+      run: |
+        : install
+    - id: configure
+      run: |
+        : configure
+    - id: execute
+      run: |
+        : execute
+    - id: gen-outputs
+      env:
+        RUNS_ON: ${{ runner.name }}
+        RUNNER_ARCH: ${{ runner.arch }}
+        RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        RUNNER_OS: ${{ runner.os }}
+        MNT_DEPLOY_DIR: ${{ inputs.MNT_DEPLOY_DIR }}
+        MNT_DL_DIR: ${{ inputs.MNT_DL_DIR }}
+        MNT_SSTATE_DIR: ${{ inputs.MNT_SSTATE_DIR }}
+      run: |
+        : generate outputs
+        # assign outputs.runs-on to label matching runner.name for self-hosted
+        [[ "${{ inputs.runs-on }}" = *"self-hosted"* ]] && echo "runs-on=$RUNS_ON" >>$GITHUB_OUTPUT || echo "runs-on=${{ inputs.runs-on }}" >>$GITHUB_OUTPUT
+        echo "runner-environment=$RUNNER_ENVIRONMENT" >>$GITHUB_OUTPUT
+        echo "runner-os=$RUNNER_OS" >>$GITHUB_OUTPUT
+        echo "runner-arch=$RUNNER_ARCH" >>$GITHUB_OUTPUT
+        # reference path for autofs mounts to initialize
+        df -h $MNT_DEPLOY_DIR/ $MNT_DL_DIR/ $MNT_SSTATE_DIR/ 2>/dev/null || true
+        mnt_deploy_dir=$(df -TP $MNT_DEPLOY_DIR | tail -n -1 | grep -E '(cifs|nfs)' | awk '{print $7}' || echo '')
+        mnt_dl_dir=$(df -TP $MNT_DL_DIR | tail -n -1  | grep -E '(cifs|nfs)'| awk '{print $7}' || echo '')
+        mnt_sstate_dir=$(df -TP $MNT_SSTATE_DIR | tail -n -1  | grep -E '(cifs|nfs)'| awk '{print $7}' || echo '')
+        echo "mnt_deploy_dir=$mnt_deploy_dir" >>$GITHUB_OUTPUT
+        echo "mnt_dl_dir=$mnt_dl_dir" >>$GITHUB_OUTPUT
+        echo "mnt_sstate_dir=$mnt_sstate_dir" >>$GITHUB_OUTPUT
+    - id: gen-summary
+      if: ${{ success() || failure() }}
+      env:
+        RUNS_ON: ${{ steps.gen-outputs.outputs.runs-on }}
+        RUNNER_ARCH: ${{ steps.gen-outputs.outputs.runner-arch }}
+        RUNNER_ENVIRONMENT: ${{ steps.gen-outputs.outputs.runner-environment }}
+        RUNNER_OS: ${{ steps.gen-outputs.outputs.runner-os }}
+        MNT_DEPLOY_DIR: ${{ steps.gen-outputs.outputs.mnt_deploy_dir }}
+        MNT_DL_DIR: ${{ steps.gen-outputs.outputs.mnt_dl_dir }}
+        MNT_SSTATE_DIR: ${{ steps.gen-outputs.outputs.mnt_sstate_dir }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        #### $RUNNER_ENVIRONMENT $RUNNER_OS $RUNNER_ARCH $RUNS_ON
+        Memory Use
+        ~~~ text
+        $(free --human --total --lohi)
+        ~~~
+        Paths
+        ~~~ text
+        MNT_DEPLOY_DIR: $MNT_DEPLOY_DIR
+        $(df -TP $MNT_DEPLOY_DIR | tail -n -1)
+        ~~~
+        ~~~ text
+        MNT_DL_DIR: $MNT_DL_DIR
+        $(df -TP $MNT_DL_DIR | tail -n -1)
+        ~~~
+        ~~~ text
+        MNT_SSTATE_DIR: $MNT_SSTATE_DIR
+        $(df -TP $MNT_SSTATE_DIR | tail -n -1)
+        ~~~
+        EOF

@@ -1,0 +1,63 @@
+name: Workflow, Images Clean
+
+# This reusable workflow is called with appropriate parameters to
+# perform fetch and build. The parameters are used to derive DISTRO
+# and MACHINE for bitbake.
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: runner label
+        required: true
+        type: string
+      path:
+        description: build paths
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+jobs:
+
+  # remove the workspace contents; self-hosted runners retain the
+  # workspace contents between jobs.
+
+  workflow:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      DIRS: ${{ inputs.path }}
+    steps:
+    - id: environment
+      run: |
+        : environment based on runtime
+    - id: install
+      run: |
+        : install
+    - id: configure
+      run: |
+        : configure
+    - id: execute
+      run: |
+        : execute
+        for dir in $DIRS ; do
+          rm -fr $dir
+        done
+    - id: gen-outputs
+      run: |
+        : generate outputs
+    - id: gen-summary
+      if: ${{ success() || failure() }}
+      run: |
+        : generate summary
+        cat <<EOF >>$GITHUB_STEP_SUMMARY
+        #### Clean Up
+        Paths
+        ~~~ text
+        $(printf "%s\n" $DIRS)
+        ~~~
+        EOF
