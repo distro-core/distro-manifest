@@ -1,0 +1,71 @@
+name: Dispatch Images Fetch, scarthgap
+
+# This workflow represents a specific configuration for a
+# single MACHINE as a specific design goal. It utilizes a
+# reusable workflow found at distro-core/distro-manifest.
+
+# Requires
+# secrets.AWS_ACCESS_KEY_ID                 Callable Workflow, S3 Access Key
+# secrets.AWS_SECRET_ACCESS_KEY             Callable Workflow, S3 Secret Key
+# secrets.AWS_ENDPOINT_URL                  Callable Workflow, S3 Endpoint Hostname
+
+# Self hosted runners have the prerequsite dependency to
+# install the host tools dependencies before workflow use.
+
+on:
+  workflow_dispatch:
+    inputs:
+      DISTROS:
+        required: true
+        type: choice
+        default: distro-core
+        options:
+          - distro-core
+          - distro-core-gui
+      TARGETS:
+        required: true
+        type: string
+        default: distro-image
+
+permissions:
+  actions: write
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  # runner-name selects a self-hosted runner which has a label that
+  # matches its name. The setup has to be performed before the
+  # workflow instance is used.
+
+  runner-name:
+    runs-on: self-hosted
+    outputs:
+      runner-name: ${{ runner.name }}
+    steps:
+      - run: echo "selected runner ${{ runner.name }}"
+
+  # the reusable workflow is called with parameters for the specifics
+  # of the process.
+
+  fetch:
+    needs: runner-name
+    uses: distro-core/distro-manifest/.github/workflows/images-build.yml@main
+    with:
+      runner-name: ${{ needs.runner-name.outputs.runner-name }}
+      timeout-minutes: 360
+      DISTRO_CODENAME: scarthgap
+      DISTROS: ${{ inputs.DISTROS }}
+      MACHINES: sbc-gene-bt05
+      TARGETS: ${{ inputs.TARGETS }}
+      TARGET_FLAGS: --runall=fetch
+      MANIFEST_URI: https://github.com/distro-core/distro-manifest.git
+      MANIFEST_BRANCH: main
+      MANIFEST_NAME: distro-head-scarthgap.xml
+    secrets:
+      AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
