@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+    <!--
+
+    distro-head-scarthgap (5.0) is used as template for manifests that capture commit-id
+
+    initialize, pre bitbake
+    mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
+    printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m distro-head-scarthgap.xml -\-no-clone-bundle
+    repo sync
+
+    commit-id manifest, post bitbake, success
+    repo manifest -r -o distro-refs-scarthgap.xml -\-pretty
+
+    -->
+
+    <!-- remotes reflect external github curated mirrors -->
+    <default sync-c="false" sync-s="true" sync-tags="false" />
+
+    <include name="remotes-github.xml" />
+    <include name="upstream-head-scarthgap.xml" />
+
+    <remote
+        name="remote-distro-core"
+        fetch="https://github.com/distro-core"
+        alias="origin"
+    />
+    <project
+        name="meta-distro"
+        path="layers/meta-distro"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        dest-branch="main"
+        groups="non-confidential,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    >
+        <linkfile
+            src="README.md"
+            dest="README.distro.md"
+        />
+        <linkfile
+            src="docs/README.manifest.md"
+            dest="README.md"
+        />
+        <linkfile
+            src="scripts"
+            dest="scripts"
+        />
+        <linkfile
+            src=".gitignore"
+            dest=".gitignore"
+        />
+
+        <!-- vscode: .vscode -->
+        <linkfile
+            src=".vscode"
+            dest=".vscode"
+        />
+
+        <!-- vscode: layers/poky/oe-init-build-env -->
+        <copyfile
+            src="conf/templates/distro-core/bblayers.conf.sample"
+            dest="build/distro-core/conf/bblayers.conf"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-notes.txt"
+            dest="build/distro-core/conf/conf-notes.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-summary.txt"
+            dest="build/distro-core/conf/conf-summary.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/local.conf.sample"
+            dest="build/distro-core/conf/local.conf"
+        />
+
+    </project>
+
+    <project
+        name="machine-com-cexpress-bt"
+        path="layers/machine-com-cexpress-bt"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        dest-branch="main"
+        groups="non-confidential,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    />
+    <project
+        name="machine-com-cexpress-sl"
+        path="layers/machine-com-cexpress-sl"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        dest-branch="main"
+        groups="non-confidential,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    />
+    <project
+        name="machine-sbc-gene-bt05"
+        path="layers/machine-sbc-gene-bt05"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        dest-branch="main"
+        groups="non-confidential,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    />
+
+</manifest>
