@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+    <!--
+
+    repo local manifest use is outside of version control, a template is copied to .repo/local_manifests and then
+    modified to pickup the desired branch or commit-id by modifying the template using the sed command. after the
+    local manifest is prepared, it is necessary to perform repo sync again.
+
+    mkdir -p .repo/local_manifests
+    cp -f distro-local-manifest.zml .repo/local_manifests/distro-local-manifest.zml
+    sed -i -e 's/revision="BRANCH"/revision="branch_or_commit-id"/g' .repo/local_manifests/distro-local-manifest.zml
+    repo sync
+
+    -->
+
+    <remove-project name="meta-distro"/>
+
+    <project
+        name="meta-distro"
+        path="layers/meta-distro"
+        remote="remote-distro-core"
+        revision="feature/BRANCH"
+        upstream="feature/BRANCH"
+        dest-branch="feature/BRANCH"
+        groups="non-confidential,mirror,oss,distro-core,distro-full,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    >
+        <linkfile
+            src="README.md"
+            dest="README.distro.md"
+        />
+        <linkfile
+            src="scripts/images-build"
+            dest="scripts/images-build"
+        />
+        <linkfile
+            src="scripts/oe-init-build-env"
+            dest="scripts/oe-init-build-env"
+        />
+
+        <!-- .vscode plugin -->
+        <linkfile
+            src=".vscode"
+            dest=".vscode"
+        />
+        <copyfile
+            src="conf/templates/distro-core/bblayers.conf.sample"
+            dest="build/sbc-gene-bt05/conf/bblayers.conf"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-notes.txt"
+            dest="build/sbc-gene-bt05/conf/conf-notes.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-summary.txt"
+            dest="build/sbc-gene-bt05/conf/conf-summary.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/local.conf.sample"
+            dest="build/sbc-gene-bt05/conf/local.conf"
+        />
+
+    </project>
+
+</manifest>

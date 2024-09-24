@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+    <!--
+
+    distro-head-kirkstone (4.0) is used as template for manifests that capture commit-id
+
+    initialize, pre bitbake
+    mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
+    printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m distro-head-kirkstone.xml -\-no-clone-bundle
+    repo sync
+
+    commit-id manifest, post bitbake, success
+    repo manifest -r -o distro-refs-scarthgap.xml -\-pretty
+
+    -->
+
+    <!-- remotes reflect external github curated mirrors -->
+    <default sync-c="false" sync-s="true" sync-tags="false" />
+
+    <include name="remotes-github.xml" />
+    <include name="upstream-head-kirkstone.xml" />
+
+    <remote
+        name="remote-distro-core"
+        fetch="https://github.com/distro-core"
+        alias="origin"
+    />
+    <project
+        name="meta-distro"
+        path="layers/meta-distro"
+        remote="remote-distro-core"
+        revision="kirkstone"
+        upstream="kirkstone"
+        dest-branch="kirkstone"
+        groups="non-confidential,mirror,oss,distro-core,distro-full,base"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    >
+        <linkfile
+            src="README.md"
+            dest="README.distro.md"
+        />
+        <linkfile
+            src="docs/README.manifest.md"
+            dest="README.md"
+        />
+        <linkfile
+            src="scripts"
+            dest="scripts"
+        />
+        <linkfile
+            src="scripts/gitignore"
+            dest=".gitignore"
+        />
+
+        <!-- vscode: .vscode -->
+        <linkfile
+            src=".vscode"
+            dest=".vscode"
+        />
+
+        <!-- vscode: layers/poky/oe-init-build-env -->
+        <copyfile
+            src="conf/templates/distro-core/bblayers.conf.sample"
+            dest="build/sbc-gene-bt05/conf/bblayers.conf"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-notes.txt"
+            dest="build/sbc-gene-bt05/conf/conf-notes.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/conf-summary.txt"
+            dest="build/sbc-gene-bt05/conf/conf-summary.txt"
+        />
+        <copyfile
+            src="conf/templates/distro-core/local.conf.sample"
+            dest="build/sbc-gene-bt05/conf/local.conf"
+        />
+
+    </project>
+
+</manifest>
