@@ -7,9 +7,13 @@
 # Configuration for Ubuntu 24.04 LTS running on WSL; install
 # at the path %USERPROFILE%\.cloud-init
 
+# wsl.exe --shutdown
+# wsl.exe --update
 # wsl.exe --unregister Ubuntu-24.04
 # wsl.exe --install Ubuntu-24.04
 # wsl.exe --distribution Ubuntu-24.04
+# cloese and restart Windows Terminal
+# start Ubuntu-24.04 from Windows Terminal
 
 locale: en_US.UTF-8
 timezone: America/Chicago
