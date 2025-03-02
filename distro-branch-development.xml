@@ -2,17 +2,17 @@
 
 <!--
 
-distro-head-scarthgap (5.0) is used as template for manifests that captures HEAD refs
+distro-branch-development scarthgap (5.0) is used as template for manifests that captures HEAD refs
 ** LONG TERM SUPPORT 04/2028 **
 
-INITIALIZE
+initialize, pre bitbake
 
 mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
-printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m distro-head-scarthgap.xml -\-no-clone-bundle -\-groups default,workflows
+printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b development -m distro-branch-development.xml -\-no-clone-bundle -\-groups default,workflows
 repo sync -\-force-sync -\-force-checkout -\-force-remove-dirty -\-no-repo-verify
 
-git -C .repo/manifests branch -D main
-git -C .repo/manifests checkout -\-track origin/main
+git -C .repo/manifests branch -D development
+git -C .repo/manifests checkout -\-track origin/development
 git -C .repo/manifests branch -D default
 
 repo forall -c 'echo $REPO_PATH $REPO_RREV; git checkout -\-track $(git remote)/$REPO_RREV'
@@ -20,7 +20,7 @@ repo status
 
 FINALIZE
 
-repo manifest -\-revision-as-HEAD -\-output-file distro-refs-scarthgap.xml -\-pretty
+tbd
 
 -->
 
@@ -44,8 +44,8 @@ repo manifest -\-revision-as-HEAD -\-output-file distro-refs-scarthgap.xml -\-pr
         name="meta-distro"
         path="layers/meta-distro"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="non-confidential,base"
         sync-c="false"
         sync-s="false"

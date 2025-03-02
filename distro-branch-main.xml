@@ -2,7 +2,7 @@
 
 <!--
 
-distro-head-scarthgap (5.0) is used as template for manifests that captures HEAD refs
+distro-branch-main scarthgap (5.0) is used as template for manifests that captures HEAD and commit-id refs
 ** LONG TERM SUPPORT 04/2028 **
 
 INITIALIZE
@@ -20,7 +20,7 @@ repo status
 
 FINALIZE
 
-repo manifest -\-revision-as-HEAD -\-output-file distro-refs-scarthgap.xml -\-pretty
+tbd
 
 -->
 

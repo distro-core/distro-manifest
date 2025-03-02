@@ -2,10 +2,10 @@
 
 <!--
 
-distro-head-honister (3.4) is used as template for manifests that capture commit-id
+distro-head-honister (3.4) is used as template for manifests that captures HEAD refs
 ** END OF LIFE **
 
-initialize, pre bitbake
+INITIALIZE
 
 mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
 printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m distro-head-honister.xml -\-no-clone-bundle  -\-groups default,workflows
@@ -18,9 +18,9 @@ git -C .repo/manifests branch -D default
 repo forall -c 'echo $REPO_PATH $REPO_RREV; git checkout -\-track $(git remote)/$REPO_RREV'
 repo status
 
-commit-id manifest, post bitbake, success
+FINALIZE
 
-repo manifest -\-revision-as-HEAD -\-output-file= .repo/manifests/distro-refs-honister.xml -\-pretty
+repo manifest -\-revision-as-HEAD -\-output-file distro-refs-honister.xml -\-pretty
 
 -->
 
