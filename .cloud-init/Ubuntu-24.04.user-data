@@ -39,7 +39,8 @@ users:
   plain_text_passwd: 'password'
   groups: [adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker]
   shell: /bin/bash
-  sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+  sudo:
+  - ALL=(ALL) NOPASSWD:ALL
 - name: dockremap
   uid: 967
   gecos: Docker rootless remap
@@ -56,6 +57,9 @@ users:
   groups: [docker]
   shell: /bin/bash
   lock_passwd: true
+  # sudo:
+  # - ALL=(ALL) NOPASSWD:/usr/bin/apt-get install *
+  # - ALL=(ALL) NOPASSWD:/usr/sbin/locale-gen *
 
 write_files:
 - path: /etc/wsl.conf
@@ -126,11 +130,13 @@ write_files:
   append: true
   defer: true
   content: |
+    runner:4294936224:65536
     dockremap:4294936224:65536
 - path: /etc/subuid
   append: true
   defer: true
   content: |
+    runner:4294936224:65536
     dockremap:4294936224:65536
 - path: /etc/smbcredentials
   append: false
@@ -146,7 +152,6 @@ write_files:
   content: |
     {
       "experimental": false,
-      "userns-remap": "dockremap",
       "exec-opts": ["native.cgroupdriver=systemd"],
       "data-root": "/var/lib/docker",
       "log-driver": "journald",
