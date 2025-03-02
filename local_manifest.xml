@@ -22,4 +22,5 @@ repo sync ...
 -->
 
 <manifest>
+<!-- <extend-project name="meta-distro" revision="branch-slug" upstream="branch-slug" groups"additional_group"/> -->
 </manifest>
