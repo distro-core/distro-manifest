@@ -163,6 +163,26 @@ write_files:
       "iptables": true,
       "ip6tables": true
     }
+- path: /etc/systemd/system/user@.service.d/override.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    # docker-rootless
+    [Service]
+    Delegate=cpu cpuset io memory pids
+- path: /etc/systemd/system/user-.slice.d/override.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    # docker-rootless
+    [Slice]
+    Slice=user.slice
+    CPUAccounting=yes
+    MemoryAccounting=yes
+    IOAccounting=yes
+    TasksAccounting=yes
 
 package_reboot_if_required: true
 package_update: true
@@ -230,6 +250,8 @@ runcmd:
   apt-get -y -qq install gh
   apt-get -y -qq install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   systemctl disable --now docker.service docker.socket
+  loginctl enable-linger user
+  loginctl enable-linger runner
 - |
   curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo >/usr/local/bin/repo
   chmod 755 /usr/local/bin/repo
