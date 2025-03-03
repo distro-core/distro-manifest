@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+repo local manifest use is outside of version control, a template is copied to .repo/local_manifests and then
+modified to pickup the desired branch or commit-id by modifying the template using the sed command. after the
+local manifest is prepared, it is necessary to perform repo sync again.
+
+: repo-local-manifests
+install -d .repo/local_manifests
+rm -f .repo/local_manifests/*
+cat <<EOF >.repo/local_manifests/local-manifest-scarthgap.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+<extend-project name="meta-distro" revision="branch-slug|commit-id" upstream="branch-slug" groups"additional_group"/>
+</manifest>
+EOF
+
+repo init ...
+repo sync ...
+
+-->
+
+<manifest>
+<!-- <extend-project name="meta-distro" revision="branch-slug" upstream="branch-slug" groups"additional_group"/> -->
+</manifest>
