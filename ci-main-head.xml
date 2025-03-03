@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+ci-main-head (5.0) is used as template for manifests that captures HEAD refs
+** LONG TERM SUPPORT 04/2028 **
+
+INITIALIZE
+
+mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
+printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m ci-main-head.xml -\-no-clone-bundle -\-groups default,workflows
+repo sync -\-force-sync -\-force-checkout -\-force-remove-dirty -\-no-repo-verify
+
+RECOMMENDED BEFORE OPENING IN IDE
+
+git -C .repo/manifests branch -D main
+git -C .repo/manifests checkout -\-track origin/main
+git -C .repo/manifests branch -D default
+
+repo forall -c 'echo $REPO_PATH $REPO_RREV; git checkout -\-track $(git remote)/$REPO_RREV'
+repo status | tee /dev/null
+
+FINALIZE
+
+timestamp="$(date -Isec)"
+branch_base="main"
+branch_name="ci-${branch_base}-refs-${timestamp//:/.}"
+git -C .repo/manifests checkout -B ${branch_name} origin/${branch_base}
+repo manifest -\-revision-as-HEAD -\-output-file .repo/manifests/ci-${branch_base}-refs.xml -\-pretty
+git -C .repo/manifests add ci-${branch_base}-refs.xml
+git -C .repo/manifests commit -\-message "ci-${branch_base}-refs: ${timestamp}" -\-signoff -\-gpg-sign
+git -C .repo/manifests push -\-set-upstream origin ${branch_name}
+git -C .repo/manifests checkout ${branch_base}
+
+-->
+
+<manifest>
+
+    <remote
+        name="remote-distro-core"
+        fetch="https://github.com/distro-core"
+        alias="origin"
+    />
+    <remote
+        name="remote-distro-core-curated-mirrors"
+        fetch="https://github.com/distro-core-curated-mirrors"
+        alias="origin"
+    />
+
+    <project
+        name="meta-distro"
+        path="layers/meta-distro"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="non-confidential,base"
+        sync-c="false" sync-s="false" sync-tags="true"
+    >
+        <linkfile
+            src=".gitignore"
+            dest=".gitignore"
+        />
+        <!-- <linkfile
+            src=".vscode"
+            dest=".vscode"
+        /> -->
+    </project>
+
+    <!-- upstream mirrors projects -->
+    <project
+        name="meta-amd"
+        path="layers/meta-amd"
+        remote="remote-distro-core-curated-mirrors"
+        revision="kirkstone"
+        upstream="kirkstone"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-amd"
+        />
+    </project>
+    <project
+        name="meta-arm"
+        path="layers/meta-arm"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-arm"
+        />
+    </project>
+    <project
+        name="meta-clang"
+        path="layers/meta-clang"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/kraj/meta-clang.git"
+        />
+    </project>
+    <project
+        name="meta-dpdk"
+        path="layers/meta-dpdk"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-dpdk"
+        />
+    </project>
+    <project
+        name="meta-freescale"
+        path="layers/meta-freescale"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/Freescale/meta-freescale.git"
+        />
+    </project>
+    <project
+        name="meta-freescale-3rdparty"
+        path="layers/meta-freescale-3rdparty"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/Freescale/meta-freescale-3rdparty.git"
+        />
+    </project>
+    <project
+        name="meta-intel"
+        path="layers/meta-intel"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-intel"
+        />
+    </project>
+    <project
+        name="yocto-meta-kde"
+        path="layers/meta-kde"
+        remote="remote-distro-core-curated-mirrors"
+        revision="master"
+        upstream="master"
+        groups="notdefault,non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/KDE/yocto-meta-kde.git"
+        />
+    </project>
+    <project
+        name="yocto-meta-kf5"
+        path="layers/meta-kf5"
+        remote="remote-distro-core-curated-mirrors"
+        revision="master"
+        upstream="master"
+        groups="notdefault,non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/KDE/yocto-meta-kf5.git"
+        />
+    </project>
+    <project
+        name="yocto-meta-kf6"
+        path="layers/meta-kf6"
+        remote="remote-distro-core-curated-mirrors"
+        revision="master"
+        upstream="master"
+        groups="notdefault,non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/KDE/yocto-meta-kf6.git"
+        />
+    </project>
+    <project
+        name="meta-mingw"
+        path="layers/meta-mingw"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-mingw"
+        />
+    </project>
+    <project
+        name="meta-openembedded"
+        path="layers/meta-openembedded"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.openembedded.org/meta-openembedded"
+        />
+    </project>
+    <project
+        name="meta-openembedded-contrib"
+        path="layers/meta-openembedded-contrib"
+        remote="remote-distro-core-curated-mirrors"
+        revision="stable/scarthgap-nut"
+        upstream="stable/scarthgap-nut"
+        groups="notdefault,non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.openembedded.org/meta-openembedded-contrib"
+        />
+    </project>
+    <project
+        name="meta-qt5"
+        path="layers/meta-qt5"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/meta-qt5/meta-qt5.git"
+        />
+    </project>
+    <project
+        name="meta-qt6"
+        path="layers/meta-qt6"
+        remote="remote-distro-core-curated-mirrors"
+        revision="lts-6.5"
+        upstream="lts-6.5"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://code.qt.io/yocto/meta-qt6.git"
+        />
+    </project>
+    <project
+        name="meta-raspberrypi"
+        path="layers/meta-raspberrypi"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/agherzan/meta-raspberrypi.git"
+        />
+    </project>
+    <project
+        name="meta-riscv"
+        path="layers/meta-riscv"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/riscv/meta-riscv.git"
+        />
+    </project>
+    <project
+        name="meta-rust"
+        path="layers/meta-rust"
+        remote="remote-distro-core-curated-mirrors"
+        revision="master"
+        upstream="master"
+        groups="notdefault,non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/meta-rust/meta-rust.git"
+        />
+    </project>
+    <project
+        name="meta-secure-core"
+        path="layers/meta-secure-core"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <!-- <linkfile
+            src="meta"
+            dest="layers/meta-secure-core/meta-secure-core-common"
+        /> -->
+        <annotation
+            name="src_uri"
+            value="https://github.com/Wind-River/meta-secure-core.git"
+        />
+    </project>
+    <project
+        name="meta-security"
+        path="layers/meta-security"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-security"
+        />
+    </project>
+    <project
+        name="meta-selinux"
+        path="layers/meta-selinux"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-selinux"
+        />
+    </project>
+    <project
+        name="meta-tegra"
+        path="layers/meta-tegra"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,bsp"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/OE4T/meta-tegra.git"
+        />
+    </project>
+    <project
+        name="meta-updater"
+        path="layers/meta-updater"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://github.com/uptane/meta-updater.git"
+        />
+    </project>
+    <project
+        name="meta-virtualization"
+        path="layers/meta-virtualization"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/meta-virtualization"
+        />
+    </project>
+    <project
+        name="poky"
+        path="layers/poky"
+        remote="remote-distro-core-curated-mirrors"
+        revision="scarthgap"
+        upstream="scarthgap"
+        groups="non-confidential,base"
+        clone-depth="1" sync-c="true" sync-s="false" sync-tags="false"
+    >
+        <annotation
+            name="src_uri"
+            value="https://git.yoctoproject.org/poky"
+        />
+    </project>
+
+    <!-- github actions: actions library -->
+    <project
+        name="actions"
+        path="layers/actions"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: documentaton -->
+    <project
+        name=".github"
+        path="layers/dot.github"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <project
+        name=".github-private"
+        path="layers/dot.github-private"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,private"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-com-cexpress-bt"
+        path="layers/workflows-com-cexpress-bt"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,com-cexpress-bt,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-com-cexpress-sl"
+        path="layers/workflows-com-cexpress-sl"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,com-cexpress-sl,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-sbc-gene-bt05"
+        path="layers/workflows-sbc-gene-bt05"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,sbc-gene-bt05,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <!-- <project
+        name="workflows-sbc-pine64-star64"
+        path="layers/workflows-sbc-pine64-star64"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,private"
+        sync-c="false" sync-s="false" sync-tags="true"
+    /> -->
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-sbc-raspberrypi5"
+        path="layers/workflows-sbc-raspberrypi5"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,sbc-raspberrypi5,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-sbc-xavier-nx-devkit"
+        path="layers/workflows-sbc-xavier-nx-devkit"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,sbc-xavier-nx-devkit,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-wsl-amd64"
+        path="layers/workflows-wsl-amd64"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,wsl-amd64,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+    <!-- github actions: MACHINE workflows and bsp -->
+    <project
+        name="workflows-wsl-arm64"
+        path="layers/workflows-wsl-arm64"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,wsl-arm64,workflows"
+        sync-c="false" sync-s="false" sync-tags="true"
+    />
+
+</manifest>
