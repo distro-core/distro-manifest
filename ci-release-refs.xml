@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="remote-distro-core" fetch="https://github.com/distro-core" alias="origin"/>
+  <remote name="remote-distro-core-curated-mirrors" fetch="https://github.com/distro-core-curated-mirrors" alias="origin"/>
+  
+  <default sync-c="true" sync-tags="false"/>
+  
+  <project name=".github" path="workflows/dot.github" remote="remote-distro-core" revision="a0a1bebe3fe7a4e144fbacaa87f1e46d0aaf439d" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="actions" path="workflows/actions" remote="remote-distro-core" revision="4fe40cdd5bf9d7c4608f10c5929169c1386fb690" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="meta-distro" path="layers/meta-distro" remote="remote-distro-core" revision="deebe4962a4fb4653dfb8d067ff8c7f9ac4276f2" upstream="main" dest-branch="main" groups="non-confidential,base">
+    <linkfile src=".gitignore" dest=".gitignore"/>
+    <linkfile src=".vscode" dest=".vscode"/>
+  </project>
+  <project name="meta-intel" path="layers/meta-intel" remote="remote-distro-core-curated-mirrors" revision="1a7ccdcaedc965f019a9263364437356b8a2ba29" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-intel"/>
+  </project>
+  <project name="meta-mingw" path="layers/meta-mingw" remote="remote-distro-core-curated-mirrors" revision="bd9fef71ec005be3c3a6d7f8b99d8116daf70c4f" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-mingw"/>
+  </project>
+  <project name="meta-openembedded" path="layers/meta-openembedded" remote="remote-distro-core-curated-mirrors" revision="4f11a12b2352bbdfafb6b7d956bf424af4992977" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.openembedded.org/meta-openembedded"/>
+  </project>
+  <project name="meta-raspberrypi" path="layers/meta-raspberrypi" remote="remote-distro-core-curated-mirrors" revision="6df7e028a2b7b2d8cab0745dc0ed2eebc3742a17" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/agherzan/meta-raspberrypi.git"/>
+  </project>
+  <project name="meta-secure-core" path="layers/meta-secure-core" remote="remote-distro-core-curated-mirrors" revision="7a51f091cccfb8f629ce962f13b7b45d23005093" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/Wind-River/meta-secure-core.git"/>
+  </project>
+  <project name="meta-security" path="layers/meta-security" remote="remote-distro-core-curated-mirrors" revision="bc865c5276c2ab4031229916e8d7c20148dfbac3" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-security"/>
+  </project>
+  <project name="meta-selinux" path="layers/meta-selinux" remote="remote-distro-core-curated-mirrors" revision="3aff015697fa056b4af83b1c9ba44eca346a8a37" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-selinux"/>
+  </project>
+  <project name="meta-tegra" path="layers/meta-tegra" remote="remote-distro-core-curated-mirrors" revision="f2ba39101b960dc67d0739a6f31ddbf62fa435c7" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,bsp" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/OE4T/meta-tegra.git"/>
+  </project>
+  <project name="meta-updater" path="layers/meta-updater" remote="remote-distro-core-curated-mirrors" revision="92f0e7aa93966e184beb1ccdfea6c8fdb27d2b18" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://github.com/uptane/meta-updater.git"/>
+  </project>
+  <project name="meta-virtualization" path="layers/meta-virtualization" remote="remote-distro-core-curated-mirrors" revision="79673f5c67b022e7aadeb231872470295e5b9188" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/meta-virtualization"/>
+  </project>
+  <project name="poky" path="layers/poky" remote="remote-distro-core-curated-mirrors" revision="7a06e2daa719ca0cac9905988f72bb0cb546c7b5" upstream="scarthgap" dest-branch="scarthgap" groups="non-confidential,base" sync-tags="false">
+    <annotation name="src_uri" value="https://git.yoctoproject.org/poky"/>
+  </project>
+  <project name="workflows-com-cexpress-bt" path="workflows/workflows-com-cexpress-bt" remote="remote-distro-core" revision="4bf3943e1ba2b8c53af0f893e2f0fc1331953d81" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-com-cexpress-sl" path="workflows/workflows-com-cexpress-sl" remote="remote-distro-core" revision="5985470ad533d52bce4f893fca635888b2062ab4" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-sbc-gene-bt05" path="workflows/workflows-sbc-gene-bt05" remote="remote-distro-core" revision="e200f28072d30d0ecdcbf35fa161305924d1f9be" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-sbc-raspberrypi5" path="workflows/workflows-sbc-raspberrypi5" remote="remote-distro-core" revision="f4a52a8d318eee587396baf5f0366ef967d79623" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-sbc-xavier-nx-devkit" path="workflows/workflows-sbc-xavier-nx-devkit" remote="remote-distro-core" revision="691a8fc5b66a14be72843f534b32475e00f885cd" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-wsl-amd64" path="workflows/workflows-wsl-amd64" remote="remote-distro-core" revision="7018d09e6397398e07b8603785187b0cb241f732" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+  <project name="workflows-wsl-arm64" path="workflows/workflows-wsl-arm64" remote="remote-distro-core" revision="329e620d2f492dae47d0912fb03d7cc6c6eeefca" upstream="main" dest-branch="main" groups="notdefault,non-confidential,workflows"/>
+</manifest>
