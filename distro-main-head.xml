@@ -2,17 +2,17 @@
 
 <!--
 
-distro-branch-development scarthgap (5.0) is used as template for manifests that captures HEAD refs
+distro-ref-main scarthgap (5.0) is used as template for manifests that captures HEAD and commit-id refs
 ** LONG TERM SUPPORT 04/2028 **
 
-initialize, pre bitbake
+INITIALIZE
 
 mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
-printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b development -m distro-branch-development.xml -\-no-clone-bundle -\-groups default,workflows
+printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b main -m distro-ref-main.xml -\-no-clone-bundle -\-groups default,workflows
 repo sync -\-force-sync -\-force-checkout -\-force-remove-dirty -\-no-repo-verify
 
-git -C .repo/manifests branch -D development
-git -C .repo/manifests checkout -\-track origin/development
+git -C .repo/manifests branch -D main
+git -C .repo/manifests checkout -\-track origin/main
 git -C .repo/manifests branch -D default
 
 repo forall -c 'echo $REPO_PATH $REPO_RREV; git checkout -\-track $(git remote)/$REPO_RREV'
@@ -44,8 +44,8 @@ tbd
         name="meta-distro"
         path="layers/meta-distro"
         remote="remote-distro-core"
-        revision="development"
-        upstream="development"
+        revision="main"
+        upstream="main"
         groups="non-confidential,base"
         sync-c="false"
         sync-s="false"
@@ -464,7 +464,7 @@ tbd
         />
     </project>
 
-    <!-- github actions: MACHINE workflows -->
+    <!-- github actions: documentation -->
     <project
         name=".github"
         path="workflows/dot.github"
@@ -487,6 +487,21 @@ tbd
         sync-s="false"
         sync-tags="true"
     />
+
+    <!-- github actions: actions library -->
+    <project
+        name="actions"
+        path="workflows/actions"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,workflows"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    />
+
+    <!-- github actions: MACHINE workflows -->
     <project
         name="workflows-com-cexpress-bt"
         path="workflows/workflows-com-cexpress-bt"
@@ -567,18 +582,6 @@ tbd
     <project
         name="workflows-wsl-arm64"
         path="workflows/workflows-wsl-arm64"
-        remote="remote-distro-core"
-        revision="main"
-        upstream="main"
-        groups="notdefault,non-confidential,workflows"
-        sync-c="false"
-        sync-s="false"
-        sync-tags="true"
-    />
-    <!-- github actions: actions library -->
-    <project
-        name="actions"
-        path="workflows/actions"
         remote="remote-distro-core"
         revision="main"
         upstream="main"

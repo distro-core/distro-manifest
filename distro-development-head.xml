@@ -2,18 +2,21 @@
 
 <!--
 
-distro-branch-release scarthgap (5.0) is used as template for manifests that captures commit-id refs
+distro-ref-development scarthgap (5.0) is used as template for manifests that captures HEAD refs
 ** LONG TERM SUPPORT 04/2028 **
 
 INITIALIZE
 
 mkdir -p /srv/repo/distro-core && cd /srv/repo/distro-core
-printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b release -m distro-branch-release.xml -\-no-clone-bundle -\-groups default,workflows
+printf "\n\ny\n\n" | repo init -u https://github.com/distro-core/distro-manifest.git -b development -m distro-ref-development.xml -\-no-clone-bundle -\-groups default,workflows
 repo sync -\-force-sync -\-force-checkout -\-force-remove-dirty -\-no-repo-verify
 
-git -C .repo/manifests branch -D release
-git -C .repo/manifests checkout -\-track origin/release
+git -C .repo/manifests branch -D development
+git -C .repo/manifests checkout -\-track origin/development
 git -C .repo/manifests branch -D default
+
+repo forall -c 'echo $REPO_PATH $REPO_RREV; git checkout -\-track $(git remote)/$REPO_RREV'
+repo status
 
 FINALIZE
 
@@ -41,8 +44,8 @@ tbd
         name="meta-distro"
         path="layers/meta-distro"
         remote="remote-distro-core"
-        revision="release"
-        upstream="release"
+        revision="development"
+        upstream="development"
         groups="non-confidential,base"
         sync-c="false"
         sync-s="false"
@@ -461,7 +464,7 @@ tbd
         />
     </project>
 
-    <!-- github actions: MACHINE workflows -->
+    <!-- github actions: documentation -->
     <project
         name=".github"
         path="workflows/dot.github"
@@ -484,12 +487,27 @@ tbd
         sync-s="false"
         sync-tags="true"
     />
+
+    <!-- github actions: actions library -->
+    <project
+        name="actions"
+        path="workflows/actions"
+        remote="remote-distro-core"
+        revision="main"
+        upstream="main"
+        groups="notdefault,non-confidential,workflows"
+        sync-c="false"
+        sync-s="false"
+        sync-tags="true"
+    />
+
+    <!-- github actions: MACHINE workflows -->
     <project
         name="workflows-com-cexpress-bt"
         path="workflows/workflows-com-cexpress-bt"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -499,8 +517,8 @@ tbd
         name="workflows-com-cexpress-sl"
         path="workflows/workflows-com-cexpress-sl"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -510,8 +528,8 @@ tbd
         name="workflows-sbc-gene-bt05"
         path="workflows/workflows-sbc-gene-bt05"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -521,8 +539,8 @@ tbd
         name="workflows-sbc-pine64-star64"
         path="workflows/workflows-sbc-pine64-star64"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,private"
         sync-c="false"
         sync-s="false"
@@ -532,8 +550,8 @@ tbd
         name="workflows-sbc-raspberrypi5"
         path="workflows/workflows-sbc-raspberrypi5"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -543,8 +561,8 @@ tbd
         name="workflows-sbc-xavier-nx-devkit"
         path="workflows/workflows-sbc-xavier-nx-devkit"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -554,8 +572,8 @@ tbd
         name="workflows-wsl-amd64"
         path="workflows/workflows-wsl-amd64"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
@@ -565,20 +583,8 @@ tbd
         name="workflows-wsl-arm64"
         path="workflows/workflows-wsl-arm64"
         remote="remote-distro-core"
-        revision="main"
-        upstream="main"
-        groups="notdefault,non-confidential,workflows"
-        sync-c="false"
-        sync-s="false"
-        sync-tags="true"
-    />
-    <!-- github actions: actions library -->
-    <project
-        name="actions"
-        path="workflows/actions"
-        remote="remote-distro-core"
-        revision="main"
-        upstream="main"
+        revision="development"
+        upstream="development"
         groups="notdefault,non-confidential,workflows"
         sync-c="false"
         sync-s="false"
