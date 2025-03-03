@@ -1,0 +1,13 @@
+# .gitignore
+
+__pycache__/
+.git/
+
+*.swp
+*.un~
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+.history

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+default is used as the selected template by repo when none specified
+
+this template has no references to projects to force use of manifest name with repo init
+
+repo sync:
+Repo command failed: RepoUnhandledExceptionError
+    Number of processes must be at least 1
+
+-->
+
+<manifest>
+
+</manifest>

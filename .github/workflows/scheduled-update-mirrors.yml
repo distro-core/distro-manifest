@@ -1,0 +1,165 @@
+name: Action, Scheduled Update Mirrors
+
+# An action to perform a sync of the curated mirrors. A side effect of this
+# workflow is to normalize case from the source before pushing it to the
+# destination.
+
+# Requires
+# secrets.ACTIONS_GITHUB_TOKEN              Personal Access Token
+
+# Permissions for Personal Access Token
+# - All Repositories
+# - Actions: RW
+# - Content: RW
+# - Metadata: RO
+# - Secrets: RO
+# - Variables: RO
+# - 5 Permissions
+
+on:
+  schedule:
+  - cron: '15 */8 * * *'
+  workflow_dispatch:
+
+# workflow permissions for current repository
+
+permissions:
+  actions: write
+  contents: write
+
+# default shell for all jobs
+
+defaults:
+  run:
+    shell: bash
+
+########################################################################
+
+env:
+  GNUPGHOME: ${{ github.workspace }}/.gnupg
+
+jobs:
+
+  # update-mirrors performs the work of mirroring the repos from
+  # their respectivie origin to distro-curated-mirrors
+
+  Run:
+    runs-on: ubuntu-22.04
+    env:
+      REPO_MANIFEST_URL: https://github.com/distro-core/distro-manifest.git
+      REPO_MANIFEST_NAME: ci-main-head.xml
+      REPO_MANIFEST_REF: main
+      REPO_MANIFEST_LOCAL: >-
+        <!-- <extend-project name="meta-distro" revision="main" /> -->
+    steps:
+    - id: keepalive
+      uses: distro-core/actions/keepalive@main
+
+    - id: execute
+      run: |
+        :
+        SRC_URI=(
+          https://git.openembedded.org/bitbake
+          https://src.libcode.org/pkun/faux.git
+          https://src.libcode.org/pkun/klish.git
+          https://git.yoctoproject.org/meta-amd
+          https://git.yoctoproject.org/meta-arm
+          https://github.com/kraj/meta-clang.git
+          https://git.yoctoproject.org/meta-cloud-services
+          https://git.yoctoproject.org/meta-dpdk
+          https://github.com/Freescale/meta-freescale.git
+          https://github.com/Freescale/meta-freescale-3rdparty.git
+          https://git.yoctoproject.org/meta-intel
+          https://git.yoctoproject.org/meta-lts-mixins
+          https://git.yoctoproject.org/git/meta-mingw
+          https://git.openembedded.org/meta-openembedded
+          https://git.openembedded.org/meta-openembedded-contrib
+          https://github.com/meta-qt5/meta-qt5.git
+          https://code.qt.io/yocto/meta-qt6.git
+          https://github.com/agherzan/meta-raspberrypi.git
+          https://github.com/riscv/meta-riscv.git
+          https://github.com/meta-rust/meta-rust.git
+          https://github.com/Wind-River/meta-secure-core.git
+          https://git.yoctoproject.org/meta-security
+          https://git.yoctoproject.org/meta-selinux
+          https://github.com/STMicroelectronics/meta-st-stm32mp.git
+          https://github.com/linux-sunxi/meta-sunxi.git
+          https://github.com/OE4T/meta-tegra.git
+          https://git.yoctoproject.org/meta-tensorflow
+          https://git.yoctoproject.org/meta-ti
+          https://github.com/uptane/meta-updater.git
+          https://git.yoctoproject.org/meta-virtualization
+          https://github.com/foundriesio/meta-xilinx.git
+          https://github.com/foundriesio/meta-xilinx-tools.git
+          https://git.yoctoproject.org/meta-yocto
+          https://github.com/zehome/MLVPN.git
+          https://git.openembedded.org/openembedded-core
+          https://git.yoctoproject.org/poky
+          https://git.yoctoproject.org/poky-contrib
+          https://github.com/tailscale/tailscale.git
+          https://github.com/veracrypt/VeraCrypt.git
+          https://github.com/veracrypt/VeraCrypt-DCS.git
+          https://github.com/KDE/yocto-meta-kde.git
+          https://github.com/KDE/yocto-meta-kf5.git
+          https://github.com/KDE/yocto-meta-kf6.git
+          https://github.com/siemens/kas.git
+        )
+        :
+        errors=0
+        for src_uri in ${SRC_URI[*]}; do
+          src_name=$(basename $src_uri .git | tr '[:upper:]' '[:lower:]')
+          dst_uri="https://x-access-token:${{ secrets.ACTIONS_GITHUB_TOKEN }}@github.com/distro-core-curated-mirrors/$src_name.git"
+          rm -fr $src_name
+          if git clone --mirror $src_uri $src_name >git-clone.log; then
+            echo "Success git clone $src_uri"
+            cd $src_name
+            git for-each-ref --format "delete %(refname)" refs/heads/actions | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" refs/heads/dependabot | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" refs/pull | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" refs/meta | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" refs/merge-requests | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" refs/reviewable | git update-ref --stdin
+            git for-each-ref --format "delete %(refname)" 'refs/tags/cicd*' | git update-ref --stdin
+            if git push --porcelain --mirror $dst_uri >../git-push.log; then
+              echo "Success git push $dst_uri"
+              echo "### distro-core-curated-mirrors/$src_name" >> $GITHUB_STEP_SUMMARY
+              echo "~~~ text" >> $GITHUB_STEP_SUMMARY
+              grep -vE "(\[up to date\]|To )" ../git-push.log >> $GITHUB_STEP_SUMMARY
+              echo "~~~" >> $GITHUB_STEP_SUMMARY
+            else
+              errors=$(( errors + 1 ))
+              echo "### distro-core-curated-mirrors/$src_name" >> $GITHUB_STEP_SUMMARY
+              echo "~~~ text" >> $GITHUB_STEP_SUMMARY
+              echo "Error on push" >> $GITHUB_STEP_SUMMARY
+              echo "~~~" >> $GITHUB_STEP_SUMMARY
+            fi
+            cd ..
+          else
+            errors=$(( errors + 1 ))
+              echo "### distro-core-curated-mirrors/$src_name" >> $GITHUB_STEP_SUMMARY
+              echo "~~~ text" >> $GITHUB_STEP_SUMMARY
+              echo "Error on clone" >> $GITHUB_STEP_SUMMARY
+              echo "~~~" >> $GITHUB_STEP_SUMMARY
+          fi
+          rm -fr $src_name
+        done
+        if [[ $errors -gt 0 ]]; then
+              echo "### ERROR" >> $GITHUB_STEP_SUMMARY
+              echo "~~~ text" >> $GITHUB_STEP_SUMMARY
+              echo "Errors" >> $GITHUB_STEP_SUMMARY
+              echo "~~~" >> $GITHUB_STEP_SUMMARY
+        fi
+    - id: repo-manifest
+      uses: distro-core/actions/repo@main
+    - id: ci-branch-refs
+      run: |
+        :
+        timestamp="$(date -Isec)"
+        branch_base="${{ env.REPO_MANIFEST_REF }}"
+        branch_name="ci-${branch_base}-refs-${timestamp//:/.}"
+        echo git -C .repo/manifests checkout -B ${branch_name} origin/${branch_base}
+        repo manifest --revision-as-HEAD --output-file .repo/manifests/ci-${branch_base}-refs.xml --pretty
+        echo git -C .repo/manifests add ci-${branch_base}-refs.xml
+        echo git -C .repo/manifests commit --message "refs ci-${branch_base}-refs ${timestamp}" # --signoff --gpg-sign
+        echo git -C .repo/manifests push --set-upstream origin ${branch_name}
+        echo git -C .repo/manifests checkout ${branch_base}

@@ -1,0 +1,364 @@
+#cloud-config
+
+# SPDX-License-Identifier: MIT
+
+# https://github.com/microsoft/WSL/blob/master/distributions/DistributionInfo.json
+
+# Configuration for Ubuntu running on WSL; download and install
+# at the path %USERPROFILE%\.cloud-init
+
+# setx.exe GNUPGHOME "%USERPROFILE%\.gnupg"
+# setx.exe WSLENV "USERNAME:USERPROFILE/p"
+# wsl.exe --shutdown
+# wsl.exe --update
+# wsl.exe --unregister Ubuntu
+# wsl.exe --install Ubuntu
+# wsl.exe --distribution Ubuntu
+# close and restart Windows Terminal; pre-configured for Ubuntu
+# start Ubuntu from Windows Terminal
+
+# Modify the apt proxy entries if necessary, before running the instance
+# for the first time. These settings may be required in various production
+# environments based upon networking policy.
+
+# apt:
+#   http_proxy: http://windows_user:windows_password@10.63.136.30:8080/
+#   https_proxy: http://windows_user:windows_password@10.63.136.30:8080/
+
+locale: en_US.UTF-8
+timezone: America/Chicago
+
+############################################################
+
+power_state:
+  delay: now
+  mode: poweroff
+  message: Powering off
+  timeout: 90
+  condition: true
+
+users:
+- name: user
+  gecos: Default instance user
+  no-user-group: false
+  plain_text_passwd: 'password'
+  groups: [adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker]
+  shell: /bin/bash
+  no-create-home: false
+  homedir: /home/user
+  sudo:
+  - 'ALL=(ALL) NOPASSWD: ALL'
+- name: docker
+  uid: 966
+  gecos: Docker
+  system: true
+  no-user-group: false
+  shell: /usr/sbin/nologin
+  no-create-home: true
+  homedir: /nonexistent
+  lock_passwd: true
+- name: dockremap
+  uid: 967
+  gecos: Docker rootless remap
+  system: true
+  no-user-group: false
+  shell: /usr/sbin/nologin
+  no-create-home: true
+  homedir: /nonexistent
+  lock_passwd: true
+- name: runner
+  uid: 968
+  gecos: Automated CI/CD
+  system: true
+  no-user-group: false
+  groups: [docker]
+  shell: /bin/bash
+  lock_passwd: true
+  no-create-home: false
+  homedir: /srv/actions-runner
+
+write_files:
+- path: /etc/wsl.conf
+  append: true
+  defer: false
+  content: |
+    # https://learn.microsoft.com/en-us/windows/wsl/wsl-config
+    [user]
+    default=user
+    [boot]
+    systemd=true
+    [automount]
+    enabled=true
+    mountFsTab=true
+    options=uid=1000,gid=1000,umask=077,fmask=077,dmask=077,case=dir
+- path: /etc/wslconfig
+  append: false
+  permissions: '0644'
+  content: |
+    # https://learn.microsoft.com/en-us/windows/wsl/wsl-config
+    [wsl2]
+    defaultVhdSize=549755813888
+    processors=10
+    hardwarePerformanceCounters=false
+    networkingMode=Mirrored
+    [experimental]
+    autoMemoryReclaim=disabled
+    hostAddressLoopback=true
+- path: /etc/profile.d/wsl_instance.sh
+  append: false
+  defer: true
+  content: |
+    # WSL Instance
+    if [ "$USER" != "root" ] ; then
+      if [ -n "$USERPROFILE" ] ; then
+        if [ -d "$USERPROFILE" ] ; then
+          mkdir -p "$USERPROFILE/.config" && ln -sf "$USERPROFILE/.config" $HOME/.config && rm -f $HOME/.config/.config
+          mkdir -p "$USERPROFILE/.gnupg" && ln -sf "$USERPROFILE/.gnupg" $HOME/.gnupg && rm -f $HOME/.gnupg/.gnupg
+          mkdir -p "$USERPROFILE/.local/bin"
+          export PATH="$USERPROFILE/.local/bin:$PATH"
+          [[ -d $HOME/.ssh && ! -h $HOME/.ssh ]] && rm -fr $HOME/.ssh
+          mkdir -p "$USERPROFILE/.ssh" && ln -sf "$USERPROFILE/.ssh" $HOME/.ssh && rm -f $HOME/.ssh/.ssh
+          touch "$USERPROFILE/.netrc" && ln -sf "$USERPROFILE/.netrc" $HOME/.netrc
+          touch "$USERPROFILE/.s3cfg" && ln -sf "$USERPROFILE/.s3cfg" $HOME/.s3cfg
+          rm -fr $HOME/.config/systemd/user
+          rm -fr $HOME/.config/systemd/user.control
+        fi
+        else
+          echo "run 'setx.exe WSLENV USERNAME:USERPROFILE/p' and restart wsl"
+      fi
+    fi
+    export XDG_RUNTIME_DIR=/run/user/$(id -u)
+    export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
+    # dockerd-rootless.sh
+- path: /etc/fstab
+  append: true
+  defer: true
+  content: |
+    # drvfs mount to a drive letter
+    # M: /mnt/m drvfs rw,noatime,uid=user,gid=user,case=dir,umask=077,fmask=077,dmask=077,x-mount.mkdir 0 0
+    # O: /mnt/o drvfs rw,noatime,uid=user,gid=user,case=dir,umask=077,fmask=077,dmask=077,x-mount.mkdir 0 0
+    # bind mount to windows_user home
+    # /mnt/c/Users/windows_user /mnt/home none bind,default,x-mount.mkdir 0 0
+    # cifs requires /etc/smbcredentials
+    # //192.168.1.10/shared/artifacts /mnt/artifacts cifs vers=3,user,rw,credentials=/etc/smbcredentials,iocharset=utf8,uid=user,forceuid,gid=user,forcegid,noauto,x-mount.mkdir,x-systemd.automount 0 0
+    # //192.168.1.10/shared/downloads /mnt/downloads cifs vers=3,user,rw,credentials=/etc/smbcredentials,iocharset=utf8,uid=user,forceuid,gid=user,forcegid,noauto,x-mount.mkdir,x-systemd.automount 0 0
+    # //192.168.1.10/shared/sstate-cache /mnt/sstate-cache cifs vers=3,user,rw,credentials=/etc/smbcredentials,iocharset=utf8,uid=user,forceuid,gid=user,forcegid,noauto,x-mount.mkdir,x-systemd.automount 0 0
+    # mounted external vhd/vhdx
+    # disk management, create vdisk file=C:\windows.vhdx maximum=25600 type=dynamic
+    # wsl.exe --mount --vhd d:\wsl-srv.vhdx --bare
+    # fdisk, mbr, partition, primary, write
+    # UUID=01234567-89ab-cdef-0123-456789abcdef /srv auto defaults 0 0
+- path: /etc/sysctl.d/wsl-settings.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    fs.inotify.max_user_watches = 524288
+    kernel.apparmor_restrict_unprivileged_userns = 0
+    net.ipv4.ip_unprivileged_port_start = 0
+    net.ipv4.conf.all.forwarding = 1
+    net.ipv4.conf.default.forwarding = 1
+    net.ipv6.ip_unprivileged_port_start = 0
+    net.ipv6.conf.all.forwarding = 1
+    net.ipv6.conf.default.forwarding = 1
+    user.max_user_namespaces = 15000
+- path: /etc/subgid
+  append: true
+  defer: true
+  # GID * 65536
+  content: |
+    runner:63438848:65536
+    dockremap:4294836224:65536
+- path: /etc/subuid
+  append: true
+  defer: true
+  # UID * 65536
+  content: |
+    runner:63438848:65536
+    dockremap:4294836224:65536
+- path: /etc/smbcredentials
+  append: false
+  defer: false
+  permissions: '0600'
+  content: |
+    username=windows_user
+    password=windows_password
+- path: /etc/systemd/system/-.slice.d/oomd.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    [Slice]
+    ManagedOOMSwap=auto
+    ManagedOOMMemoryPressure=auto
+- path: /etc/docker/daemon.json
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    {
+      "experimental": false,
+      "exec-opts": ["native.cgroupdriver=systemd"],
+      "data-root": "/var/lib/docker",
+      "log-driver": "journald",
+      "log-level": "info",
+      "insecure-registries": [],
+      "registry-mirrors": [],
+      "ip-forward": true,
+      "ip-masq": true,
+      "iptables": true,
+      "ip6tables": true
+    }
+- path: /etc/systemd/system/user@.service.d/docker-rootless.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    [Service]
+    Delegate=cpu cpuset io memory pids
+- path: /etc/systemd/system/user-.slice.d/docker-rootless.conf
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    [Slice]
+    Slice=user.slice
+    CPUAccounting=yes
+    MemoryAccounting=yes
+    IOAccounting=yes
+    TasksAccounting=yes
+- path: /etc/systemd/user/docker.service
+  append: false
+  defer: false
+  permissions: '0644'
+  content: |
+    [Unit]
+    # systemctl --user start docker.service
+    # systemctl --user status docker.service
+    # docker info
+    Description=Docker Application Container Engine (Rootless)
+    Documentation=https://docs.docker.com/go/rootless/
+    Requires=dbus.socket
+    [Service]
+    Environment=PATH=/sbin:/bin:/usr/sbin:/usr/bin
+    ExecStart=/usr/bin/dockerd-rootless.sh
+    ExecReload=/bin/kill -s HUP $MAINPID
+    TimeoutSec=0
+    RestartSec=2
+    Restart=always
+    StartLimitBurst=3
+    StartLimitInterval=60s
+    LimitNOFILE=infinity
+    LimitNPROC=infinity
+    LimitCORE=infinity
+    TasksMax=infinity
+    Delegate=yes
+    Type=notify
+    NotifyAccess=all
+    KillMode=mixed
+    [Install]
+    WantedBy=default.target
+- path: /root/.hushlogin
+  append: false
+  defer: true
+  owner: root:root
+  permissions: '0644'
+  content: |
+    # remove motd notices
+- path: /home/user/.hushlogin
+  append: false
+  defer: true
+  owner: user:user
+  permissions: '0644'
+  content: |
+    # remove motd notices
+- path: /etc/modules-load.d/99-usbip.conf
+  append: false
+  defer: true
+  permissions: '0644'
+  content: |
+    # usbip client
+    vhci_hcd
+    # usbip server
+    usbip_core
+    usbip_host
+
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+packages:
+- build-essential
+- chrpath
+- cpio
+- debianutils
+- diffstat
+- file
+- gawk
+- gcc
+- git
+- iputils-ping
+- libacl1
+- liblz4-tool
+- locales
+- python3
+- python3-git
+- python3-jinja2
+- python3-pexpect
+- python3-pip
+- python3-subunit
+- socat
+- texinfo
+- unzip
+- wget
+- xz-utils
+- zstd
+- apt-transport-https
+- btrfs-progs
+- ca-certificates
+- cifs-utils
+- curl
+- dosfstools
+- e2fsprogs
+- file
+- git-lfs
+- gnupg-agent
+- jq
+- libacl1
+- liblz4-tool
+- libxml2-utils
+- linux-tools-common
+- mesa-utils
+- python-is-python3
+- python3-venv
+- rsync
+- s3cmd
+- software-properties-common
+- time
+- uidmap
+
+runcmd:
+- |
+  install -d -m 1777 /srv/repo
+  install -d -m 0775 /srv/actions-runner && chown -R runner:runner /srv/actions-runner
+  install -d -m 0755 /etc/apt/keyrings
+  install -d -m 0755 /etc/apt/sources.list.d
+  systemctl disable apparmor.socket
+  systemctl disable apparmor.service
+- |
+  curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo >/usr/local/bin/repo
+  chmod 755 /usr/local/bin/repo
+- |
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/github-cli.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/github-cli.gpg] https://cli.github.com/packages stable main" >/etc/apt/sources.list.d/github-cli.list
+  apt-get update
+  apt-get -y install gh
+- |
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable" >/etc/apt/sources.list.d/docker-ce.list
+  apt-get update
+  apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  systemctl disable --now docker.socket
+  systemctl disable --now docker.service
+  loginctl enable-linger user
+  loginctl enable-linger runner
+  rm -fr /var/lib/docker/{buildkit,containers,engine-id,image,network,overlay2,plugins,runtimes,swarm,tmp,volumes}
